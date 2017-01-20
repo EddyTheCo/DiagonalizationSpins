@@ -172,7 +172,7 @@ double calculateStd(stack<double> & vect,double ave)
     while(!vect.empty())
     {
         sum+=pow((vect.top()-ave),2);
-
+        cout<< ave <<"***"<<vect.top()<<"****"<<endl;
         vect.pop();
     }
 
