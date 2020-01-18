@@ -9,11 +9,26 @@
 #include <complex>
 #include <cmath>
 #include <chrono>
-
+#include<vector>
 
 using namespace std;
 using namespace arma;
 
+
+vector<int> BasisMat;
+int createZ2(const size_t L)
+{
+ int var=0;
+    for(size_t i=0;i<L;i++)
+    {
+        var+=((i%2)?1:0)*static_cast<int>(pow(2,i));
+    }
+
+    return var;
+}
+
+
+void CreateBasis(const size_t L);
 
 int main()
 {
@@ -27,22 +42,26 @@ int main()
     cout<<"Creating Hamiltonian matrix"<<endl;
     auto start1 = chrono::high_resolution_clock::now();
 
-    sp_mat P = zeros<sp_mat>(2,2);
-    P(1,1)=1.;
-    sp_mat X = zeros<sp_mat>(2,2);
-    X(0,1)=1.;
-    X(1,0)=1.;
+    CreateBasis(L);
 
-    sp_mat ident = speye<sp_mat>(pow(2,L-3),pow(2,L-3));
 
-    sp_mat Hamil=kron(kron(kron(X,P),ident),P) + kron(P,kron(ident,kron(P,X))) ;
-    for(size_t site=0;site<L-2;site++)
+    const size_t BASISSIZE=BasisMat.size();
+    cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
+    mat Hamil(BASISSIZE,BASISSIZE);
+
+
+    for(size_t i=0;i<BASISSIZE;i++)
     {
-        sp_mat identL = speye<sp_mat>(pow(2,site),pow(2,site));
-        sp_mat identR = speye<sp_mat>(pow(2,L-site-3),pow(2,L-site-3));
-        Hamil += kron(identL,kron(kron(kron(P,X),P),identR));
+        for(size_t j=0;j<BASISSIZE;j++)
+        {
+            int var=(BasisMat.at(i))^(BasisMat.at(j));
+            Hamil.at(i,j)=__builtin_popcount(var)/(L*1.0);
+
+        }
     }
 
+    //cout<<"HAMILTONIAN"<<endl;
+    //cout<<Hamil<<endl;
     auto start2 = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed = start2 - start1;
     cout<<" Elapsed time Creating Hamiltonian Matrix: " << elapsed.count()<<"s"<<endl;
@@ -51,31 +70,40 @@ int main()
     vec eigval;
     mat eigvec;
 
-    eigs_sym(eigval, eigvec, Hamil,pow(2,L)-1);
+    eig_sym(eigval, eigvec, Hamil);
 
     auto start3 = chrono::high_resolution_clock::now();
-     elapsed = start3 - start2;
+    elapsed = start3 - start2;
     cout<<" Elapsed time Diagonalizing Hamiltonian Matrix: " << elapsed.count()<<"s"<<endl;
     cout<<"writing eigenvectors"<<endl;
     eigvec.save("Eigenvectors.bin");
     cout<<"writing eigenvalues"<<endl;
     eigval.save("Eigenvalues.bin");
+
+    //cout<<"eigenvalues="<<endl;
     //cout<<eigval<<endl;
+    //cout<<"eigenvectors="<<endl;
+    //cout<<eigvec<<endl;
+    rowvec Z2(BASISSIZE);
+    int Z_2=createZ2(L);
 
-    rowvec up={1.,0.};
-    rowvec down={0.,1.};
-
-    rowvec Z2=up;
-
-    for(size_t j=1;j<L;j++)
+    for(size_t j=0;j<BASISSIZE;j++)
     {
-        Z2=kron(Z2,(j%2)?down:up);
+        Z2.at(j)=__builtin_popcount((BasisMat.at(j))&Z_2)/(L*1.0);
     }
-    TH2D* Prof=new TH2D("E_Vs_Log10(overlap)","",100.,-20.,20.,100,0.,-9.);
-    for(size_t j=0;j<eigvec.n_cols;j++)
+
+//cout<<"Z2="<<endl;
+//cout<<Z2<<endl;
+    TH2D* Prof=new TH2D("E_Vs_Log10(overlap)","",100,0.,0.,100,0.,0.);
+    Prof->SetCanExtend(TH1::kYaxis);
+    Prof->SetCanExtend(TH1::kXaxis);
+    for(size_t j=0;j<BASISSIZE;j++)
     {
         const double val=pow(as_scalar(Z2*eigvec.col(j)),2);
-        if(log10(val)>-10.)Prof->Fill(eigval(j),log10(val));
+        //cout<<"Z2*eigvect #"<<j<<" = "<<Z2*eigvec.col(j)<<endl;
+        //cout<<"eige="<<eigvec.col(j);
+        cout<<"log10(val)="<<log10(val)<<" eigenvalue="<<eigval(j)<<endl;
+        Prof->Fill(eigval(j),log10(val));
 
     }
 
@@ -85,3 +113,73 @@ int main()
 
 
 }
+
+void CreateBasis(const size_t L)
+{
+    BasisMat.push_back(0);
+    size_t BasisMatSIZE=BasisMat.size();
+cout<<"Creating Basis"<<endl;
+vector<int> rep;
+    for (size_t basisIndex=0;basisIndex<BasisMatSIZE;basisIndex++)
+    {
+
+        int number=BasisMat.at(basisIndex);
+
+
+        for(size_t site=0;site<L;site++)
+        {
+
+            if(!(number&(1<<site)))
+            {
+                int number2=number|(1<<site);
+
+                bool put=true;
+                for(size_t h=0;h<rep.size();h++)
+                {
+                    if(number2==rep.at(h))
+                    {
+                        put=false;
+                        break;
+                    }
+
+                }
+                if(put)
+                {
+                    if(__builtin_popcount((number2&((1<<(L-1))+1)))>1)
+                    {
+
+                        put=false;
+                    }
+                    else
+                    {
+                        for(size_t k=0;k<L-1;k++)
+                        {
+
+                            if(__builtin_popcount(number2&(3<<k))>1)
+                            {
+                                put=false;
+                                break;
+                            }
+                        }
+                    }
+                    if(put)
+                    {
+
+                        BasisMat.push_back(number2);
+                        rep.push_back(number2);
+                    }
+                }
+            }
+        }
+        if(basisIndex==BasisMatSIZE-1&&BasisMatSIZE!=BasisMat.size())
+        {
+            basisIndex=BasisMatSIZE-1;
+            BasisMatSIZE=BasisMat.size();
+            rep.clear();
+
+        }
+
+    }
+}
+
+
