@@ -10,16 +10,17 @@
 #include <cmath>
 #include <chrono>
 #include<vector>
+#include<bits/stdc++.h>
 
 using namespace std;
 using namespace arma;
 
 
 vector<int> BasisMat;
-int createZ2(const size_t L)
+int createZ2(const int L)
 {
  int var=0;
-    for(size_t i=0;i<L;i++)
+    for(int i=0;i<L;i++)
     {
         var+=((i%2)?1:0)*static_cast<int>(pow(2,i));
     }
@@ -27,13 +28,44 @@ int createZ2(const size_t L)
     return var;
 }
 
+int findDisContinuous1(int n,const int L)
+{
+    //cout<<"Number="<<n<<endl;
+    n=~n;
+    int count=0;
 
-void CreateBasis(const size_t L);
+
+
+    if(((n&((1<<(L-2))+1))==(1<<(L-2))+1)&&((n&(1<<(L-1)))!=(1<<(L-1))))
+    {
+        count++;
+    }
+    //cout<<"Count1="<<count<<endl;
+    if(((n&((1<<(L-1))+2))==(1<<(L-1))+2)&&((n&(1))!=1))
+    {
+        count++;
+    }
+    //cout<<"Count2="<<count<<endl;
+        for(int k=0;k<L-2;k++)
+        {
+
+            if(((n&(5<<k))==(5<<k))&&((n&(2<<k))!=(2<<k)))
+            {
+                count++;
+            }
+        }
+   // cout<<"Count3="<<count<<endl;
+//cout<<"Count="<<count<<endl;
+
+    return count;
+}
+
+void CreateBasis(const int L);
 
 int main()
 {
 
-    size_t  L;
+    int  L;
     cout<<"Enter L"<<endl;
     cin>>L;
 
@@ -45,17 +77,20 @@ int main()
     CreateBasis(L);
 
 
-    const size_t BASISSIZE=BasisMat.size();
+    const int BASISSIZE=BasisMat.size();
     cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
     mat Hamil(BASISSIZE,BASISSIZE);
 
-
-    for(size_t i=0;i<BASISSIZE;i++)
+    for(int i=0;i<BASISSIZE;i++)
     {
-        for(size_t j=0;j<BASISSIZE;j++)
+        for(int j=0;j<=i;j++)
         {
             int var=(BasisMat.at(i))^(BasisMat.at(j));
-            Hamil.at(i,j)=__builtin_popcount(var)/(L*1.0);
+            //cout<<"Calculating "<<BasisMat.at(i)<<" xor "<<BasisMat.at(j)<<" = "<<((BasisMat.at(i))^(BasisMat.at(j)))<<endl;
+            if(var!=0)var=findDisContinuous1(var,L);
+           // cout<<"Hamil="<<var<<endl;
+            Hamil.at(i,j)=var/(L*1.);
+            Hamil.at(j,i)=var/(L*1.);
 
         }
     }
@@ -80,24 +115,20 @@ int main()
     cout<<"writing eigenvalues"<<endl;
     eigval.save("Eigenvalues.bin");
 
-    //cout<<"eigenvalues="<<endl;
-    //cout<<eigval<<endl;
-    //cout<<"eigenvectors="<<endl;
-    //cout<<eigvec<<endl;
+
     rowvec Z2(BASISSIZE);
     int Z_2=createZ2(L);
-
-    for(size_t j=0;j<BASISSIZE;j++)
+    int NOTZ2=~Z_2;
+    for(int j=0;j<BASISSIZE;j++)
     {
-        Z2.at(j)=__builtin_popcount((BasisMat.at(j))&Z_2)/(L*1.0);
+        Z2.at(j)=__builtin_popcount((BasisMat.at(j))^NOTZ2)/(L*1.);
     }
 
-//cout<<"Z2="<<endl;
-//cout<<Z2<<endl;
-    TH2D* Prof=new TH2D("E_Vs_Log10(overlap)","",100,0.,0.,100,0.,0.);
-    Prof->SetCanExtend(TH1::kYaxis);
-    Prof->SetCanExtend(TH1::kXaxis);
-    for(size_t j=0;j<BASISSIZE;j++)
+
+    TH2D* Prof=new TH2D("E_Vs_Log10(overlap)","",1000,-500,500,100,-9,0);
+
+
+    for(int j=0;j<BASISSIZE;j++)
     {
         const double val=pow(as_scalar(Z2*eigvec.col(j)),2);
         //cout<<"Z2*eigvect #"<<j<<" = "<<Z2*eigvec.col(j)<<endl;
@@ -114,19 +145,19 @@ int main()
 
 }
 
-void CreateBasis(const size_t L)
+void CreateBasis(const int L)
 {
     BasisMat.push_back(0);
-    size_t BasisMatSIZE=BasisMat.size();
+    int BasisMatSIZE=BasisMat.size();
 cout<<"Creating Basis"<<endl;
 vector<int> rep;
-    for (size_t basisIndex=0;basisIndex<BasisMatSIZE;basisIndex++)
+    for (int basisIndex=0;basisIndex<BasisMatSIZE;basisIndex++)
     {
 
         int number=BasisMat.at(basisIndex);
 
 
-        for(size_t site=0;site<L;site++)
+        for(int site=0;site<L;site++)
         {
 
             if(!(number&(1<<site)))
@@ -134,7 +165,7 @@ vector<int> rep;
                 int number2=number|(1<<site);
 
                 bool put=true;
-                for(size_t h=0;h<rep.size();h++)
+                for(int h=0;h<rep.size();h++)
                 {
                     if(number2==rep.at(h))
                     {
@@ -152,7 +183,7 @@ vector<int> rep;
                     }
                     else
                     {
-                        for(size_t k=0;k<L-1;k++)
+                        for(int k=0;k<L-1;k++)
                         {
 
                             if(__builtin_popcount(number2&(3<<k))>1)
