@@ -17,6 +17,7 @@ using namespace arma;
 
 
 vector<int> BasisMat;
+int Z2_index;
 int createZ2(const int L)
 {
  int var=0;
@@ -28,38 +29,6 @@ int createZ2(const int L)
     return var;
 }
 
-int findDisContinuous1(int n,const int L)
-{
-    //cout<<"Number="<<n<<endl;
-    n=~n;
-    int count=0;
-
-
-
-    if(((n&((1<<(L-2))+1))==(1<<(L-2))+1)&&((n&(1<<(L-1)))!=(1<<(L-1))))
-    {
-        count++;
-    }
-    //cout<<"Count1="<<count<<endl;
-    if(((n&((1<<(L-1))+2))==(1<<(L-1))+2)&&((n&(1))!=1))
-    {
-        count++;
-    }
-    //cout<<"Count2="<<count<<endl;
-        for(int k=0;k<L-2;k++)
-        {
-
-            if(((n&(5<<k))==(5<<k))&&((n&(2<<k))!=(2<<k)))
-            {
-                count++;
-            }
-        }
-   // cout<<"Count3="<<count<<endl;
-//cout<<"Count="<<count<<endl;
-
-    return count;
-}
-
 void CreateBasis(const int L);
 
 int main()
@@ -69,71 +38,95 @@ int main()
     cout<<"Enter L"<<endl;
     cin>>L;
 
-    TFile *RootFile = new TFile("RootFile.root","RECREATE");
 
-    cout<<"Creating Hamiltonian matrix"<<endl;
-    auto start1 = chrono::high_resolution_clock::now();
 
+
+    auto start0 = chrono::high_resolution_clock::now();
     CreateBasis(L);
+    auto start1 = chrono::high_resolution_clock::now();
+    cout<<" Elapsed time Creating the Basis " << chrono::duration<double>(start1 - start0).count()<<"s"<<endl;
+    cout<<"Creating Hamiltonian matrix"<<endl;
 
 
-    const int BASISSIZE=BasisMat.size();
+    const size_t BASISSIZE=BasisMat.size();
     cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
-    mat Hamil(BASISSIZE,BASISSIZE);
-
-    for(int i=0;i<BASISSIZE;i++)
+    mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
+    for(size_t i=0;i<BASISSIZE;i++)
     {
-        for(int j=0;j<=i;j++)
+        for(size_t j=0;j<i;j++)
         {
+
             int var=(BasisMat.at(i))^(BasisMat.at(j));
-            //cout<<"Calculating "<<BasisMat.at(i)<<" xor "<<BasisMat.at(j)<<" = "<<((BasisMat.at(i))^(BasisMat.at(j)))<<endl;
-            if(var!=0)var=findDisContinuous1(var,L);
-           // cout<<"Hamil="<<var<<endl;
-            Hamil.at(i,j)=var/(L*1.);
-            Hamil.at(j,i)=var/(L*1.);
+            if(__builtin_popcount(var)==1)
+            {
+                Hamil.at(i,j)=1.;
+                Hamil.at(j,i)=1.;
+            }
 
         }
     }
 
-    //cout<<"HAMILTONIAN"<<endl;
-    //cout<<Hamil<<endl;
     auto start2 = chrono::high_resolution_clock::now();
-    chrono::duration<double> elapsed = start2 - start1;
-    cout<<" Elapsed time Creating Hamiltonian Matrix: " << elapsed.count()<<"s"<<endl;
-    cout<<"Start the diagonalization"<<endl;
+
+    cout<<" Elapsed time Creating Hamiltonian Matrix: " << chrono::duration<double>(start2 - start1).count()<<"s"<<endl;
+
+
+
+   /* mat Hamil(BASISSIZE,BASISSIZE);
+
+    vector<int>::iterator itini = BasisMat.begin()+1;
+    const vector<int>::iterator last = BasisMat.end();
+    for(size_t i=1;i<BASISSIZE;i++)
+    {
+
+            const auto itHmil=Hamil.submat( i-1, i, i-1, BASISSIZE-1 ).begin();
+           const vector<int>::iterator varIndex = itini-1;
+            transform(itini, last,itHmil, [varIndex] (const int& in1) {
+
+                return ((__builtin_popcount(in1^(*varIndex))==1)?1.0:0.0); });
+            itini++;
+
+    }
+
+    Hamil=symmatu(Hamil);
+
+
+
+    //cout<<Hamil<<endl;
+    auto start3 = chrono::high_resolution_clock::now();
+   chrono::duration<double> elapsed = start3 - start2;
+    cout<<" Elapsed time Creating Hamiltonian Matrix2: " << elapsed.count()<<"s"<<endl;
+    */
+
+   cout<<"Start the diagonalization"<<endl;
 
     vec eigval;
     mat eigvec;
 
     eig_sym(eigval, eigvec, Hamil);
 
+
     auto start3 = chrono::high_resolution_clock::now();
-    elapsed = start3 - start2;
-    cout<<" Elapsed time Diagonalizing Hamiltonian Matrix: " << elapsed.count()<<"s"<<endl;
+
+    cout<<" Elapsed time Diagonalizing Hamiltonian Matrix: " << chrono::duration<double>(start3 - start2).count()<<"s"<<endl;
     cout<<"writing eigenvectors"<<endl;
     eigvec.save("Eigenvectors.bin");
     cout<<"writing eigenvalues"<<endl;
     eigval.save("Eigenvalues.bin");
 
 
-    rowvec Z2(BASISSIZE);
-    int Z_2=createZ2(L);
-    int NOTZ2=~Z_2;
-    for(int j=0;j<BASISSIZE;j++)
+    TFile *RootFile = new TFile("RootFile.root","RECREATE");
+
+    TH2D* Prof=new TH2D("E_Vs_Log10(overlap)","",1000,-20,20,100,-10,0);
+
+
+    for(size_t j=0;j<BASISSIZE;j++)
     {
-        Z2.at(j)=__builtin_popcount((BasisMat.at(j))^NOTZ2)/(L*1.);
-    }
 
-
-    TH2D* Prof=new TH2D("E_Vs_Log10(overlap)","",1000,-500,500,100,-9,0);
-
-
-    for(int j=0;j<BASISSIZE;j++)
-    {
-        const double val=pow(as_scalar(Z2*eigvec.col(j)),2);
+        const double val=pow(as_scalar(eigvec.col(j).row(Z2_index)),2);
         //cout<<"Z2*eigvect #"<<j<<" = "<<Z2*eigvec.col(j)<<endl;
         //cout<<"eige="<<eigvec.col(j);
-        cout<<"log10(val)="<<log10(val)<<" eigenvalue="<<eigval(j)<<endl;
+        //cout<<"log10(val)="<<log10(val)<<" eigenvalue="<<eigval(j)<<endl;
         Prof->Fill(eigval(j),log10(val));
 
     }
@@ -144,71 +137,36 @@ int main()
 
 
 }
+void recur(const int &number, const int &L ,const int &k,const int &Z_2)
+{
 
+    int number2=number|(1<<k);
+
+    if(!(k==L-1&&(number&1)))
+    {
+        BasisMat.push_back(number2);
+
+        if(number2==Z_2)
+        {
+            Z2_index=BasisMat.size()-1;
+        }
+    }
+    if(k>L-1)return;
+    for(int i=k+2;i<L;i++)
+    {
+        recur(number2,L,i,Z_2);
+    }
+}
 void CreateBasis(const int L)
 {
+    int Z_2=createZ2(L);
     BasisMat.push_back(0);
-    int BasisMatSIZE=BasisMat.size();
-cout<<"Creating Basis"<<endl;
-vector<int> rep;
-    for (int basisIndex=0;basisIndex<BasisMatSIZE;basisIndex++)
+    int number=0;
+
+
+    for(int site=0;site<L;site++)
     {
-
-        int number=BasisMat.at(basisIndex);
-
-
-        for(int site=0;site<L;site++)
-        {
-
-            if(!(number&(1<<site)))
-            {
-                int number2=number|(1<<site);
-
-                bool put=true;
-                for(int h=0;h<rep.size();h++)
-                {
-                    if(number2==rep.at(h))
-                    {
-                        put=false;
-                        break;
-                    }
-
-                }
-                if(put)
-                {
-                    if(__builtin_popcount((number2&((1<<(L-1))+1)))>1)
-                    {
-
-                        put=false;
-                    }
-                    else
-                    {
-                        for(int k=0;k<L-1;k++)
-                        {
-
-                            if(__builtin_popcount(number2&(3<<k))>1)
-                            {
-                                put=false;
-                                break;
-                            }
-                        }
-                    }
-                    if(put)
-                    {
-
-                        BasisMat.push_back(number2);
-                        rep.push_back(number2);
-                    }
-                }
-            }
-        }
-        if(basisIndex==BasisMatSIZE-1&&BasisMatSIZE!=BasisMat.size())
-        {
-            basisIndex=BasisMatSIZE-1;
-            BasisMatSIZE=BasisMat.size();
-            rep.clear();
-
-        }
+        recur(number,L,site,Z_2);
 
     }
 }
