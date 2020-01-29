@@ -5,6 +5,7 @@
 #include<TH2D.h>
 #include<TFile.h>
 #define ARMA_DONT_USE_WRAPPER
+#define ARMA_NO_DEBUG
 #include <armadillo>
 #include <complex>
 #include <cmath>
