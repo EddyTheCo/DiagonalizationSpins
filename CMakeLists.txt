@@ -4,11 +4,15 @@
 # Setup the project
 #
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
-project(MCSpin_simple)
+project(ArmaD)
+set(ROOT_INSTALL /home/camelud/GEANT4/ROOT/build)
 
-set(ROOT_INSTALL /home/camelud/GEANT4/ROOT/install)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
 if(UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -O3")        ## Optimize
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall  -std=c++11 -O3  -march=native")        ## Optimize
     set(CMAKE_EXE_LINKER_FLAGS "-s")  ## Strip binary
 
 endif()
@@ -16,6 +20,7 @@ endif()
 message( STATUS ${PROJECT_SOURCE_DIR})
 
 include_directories(${ROOT_INSTALL}/include)
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
 #include_directories(${PROJECT_SOURCE_DIR}/libraries)
 include_directories(${PROJECT_SOURCE_DIR}/src)
@@ -32,8 +37,8 @@ file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
 #file(GLOB sources ${PROJECT_SOURCE_DIR}/libraries/*.cpp)
 #file(GLOB headers ${PROJECT_SOURCE_DIR}/libraries/*.h)
 
-add_executable(MCSpin_simple MCSpin_simple.cc ${sources} ${headers} ${sourcesLibre} ${headersLibre} )
-target_link_libraries(MCSpin_simple -L${ROOT_INSTALL}/lib -lCore  -lGpad -lHist -lGraf  -lPostscript -lMathCore -rdynamic)
+add_executable(ArmaD ArmaD.cc ${sources} ${headers} )
+target_link_libraries(ArmaD -lopenblas -L${ROOT_INSTALL}/lib  -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lm -ldl -rdynamic)
 
 #-L${ROOT_INSTALL}/lib -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lm -ldl -rdynamic
 
@@ -63,19 +68,8 @@ target_link_libraries(MCSpin_simple -L${ROOT_INSTALL}/lib -lCore  -lGpad -lHist 
 #endforeach()
 
 
-set(SCRIPTS
-  INIMacro
-fit.gnu
-  )
 
-foreach(_script ${SCRIPTS})
- configure_file(
-    ${PROJECT_SOURCE_DIR}/${_script}
-   ${PROJECT_BINARY_DIR}/${_script}
-  COPYONLY
-  )
-endforeach()
 #----------------------------------------------------------------------------
 # Install the executable to 'bin' directory under CMAKE_INSTALL_PREFIX
 #
-install(TARGETS MCSpin_simple DESTINATION bin)
+install(TARGETS ArmaD DESTINATION bin)
