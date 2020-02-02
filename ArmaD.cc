@@ -94,8 +94,8 @@ void CreateBasis()
 
         if(!(i&(leftRotate(i,1))))
         {
-            BasisMat.push_back(i);
-            //checkstate(i);
+
+            checkstate(i);
         }
 
     }
@@ -128,19 +128,24 @@ cout<<"*************"<<endl;*/
 
     const size_t BASISSIZE=BasisMat.size();
     cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
-    mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
+    cx_mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
     for(size_t i=0;i<BASISSIZE;i++)
     {
         for(size_t j=0;j<i;j++)
         {
-
-            if(__builtin_popcount(BasisMat.at(i)^BasisMat.at(j))==1)
+            int LefState=BasisMat.at(i);
+            complex<double> complexI(0.0, 1.0);
+            complex<double> Hm(0.0, 0.0);
+            for (size_t b=0;b<Rperiodicity.at(i);b++)
             {
-                Hamil(i,j)=1.;
-                Hamil(j,i)=1.;
+                const int LefStateRot=leftRotate(LefState,b);
+                if(__builtin_popcount(LefStateRot^BasisMat.at(j))==1)
+                {
+                    Hm+=sqrt(Rperiodicity.at(j)/Rperiodicity.at(i))*exp(complexI*2.*3.141592654*(kmomentum*b*1./L));
+                }
             }
-
-
+            Hamil.at(i,j)=Hm;
+            Hamil.at(j,i)=Hm;
         }
     }
 
@@ -154,7 +159,7 @@ cout<<"*************"<<endl;*/
    cout<<"Start the diagonalization"<<endl;
 
     vec eigval;
-    mat eigvec;
+    cx_mat eigvec;
 
     eig_sym(eigval, eigvec, Hamil);
 
@@ -174,7 +179,7 @@ cout<<"*************"<<endl;*/
       for(size_t j=0;j<eigval.size();j++)
       {
 
-          const double val=pow(eigvec.at(BASISSIZE-1,j),2);
+          const double val=norm(eigvec.at(BASISSIZE-1,j));
           double val2=0;
           double val3=0;
           for(size_t k=0;k<BASISSIZE;k++)
@@ -192,7 +197,7 @@ cout<<"*************"<<endl;*/
                 fullBasis.at(f)=0.;
                 continue;
             }
-            fullBasis.at(f)=eigvec.at(cont,j);
+            fullBasis.at(f)=real(eigvec.at(cont,j));
             if(cont<BASISSIZE-1)cont++;
           }
           //cout<<fullBasis<<endl;
@@ -212,10 +217,10 @@ cout<<"*************"<<endl;*/
               const double elem=eigval2.at(h);
               if(elem>0.000000000000000001)val3+=elem*log(elem);
           }
-          //cout<<eigval(j)<<" "<<-val3<<endl;
+          cout<<eigval(j)<<" "<<-val3<<endl;
           Prof->Fill(real(eigval(j)),log10(val));
           Prof2->Fill(real(eigval(j)),val2);
-          //Prof3->Fill(eigval(j),-val3);
+          Prof3->Fill(eigval(j),-val3);
 
 
       }
