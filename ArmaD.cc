@@ -22,7 +22,7 @@ vector<int> BasisMat;
 vector<size_t> Rperiodicity;
 int Z2_index;
 int Z2_state=0;
-int NumberOfstatesLessHalfChain=2;
+int NumberOfstatesLessHalfChain=0;
 
 size_t  L;
 size_t kmomentum;
@@ -94,7 +94,8 @@ void CreateBasis()
 
         if(!(i&(leftRotate(i,1))))
         {
-            checkstate(i);
+            BasisMat.push_back(i);
+            //checkstate(i);
         }
 
     }
@@ -133,22 +134,12 @@ cout<<"*************"<<endl;*/
         for(size_t j=0;j<i;j++)
         {
 
-            int lefSta=BasisMat.at(i);
-
-            double Hm=0;
-            for(size_t l=0;l<L;l++)
+            if(__builtin_popcount(BasisMat.at(i)^BasisMat.at(j))==1)
             {
-                lefSta=leftRotate(lefSta,1);
-                if(__builtin_popcount(lefSta^BasisMat.at(j))==1)
-                {
-
-                    Hm+=sqrt(Rperiodicity.at(j)/Rperiodicity.at(i));
-
-                }
-
+                Hamil(i,j)=1.;
+                Hamil(j,i)=1.;
             }
-            Hamil(i,j)=Hm;
-            Hamil(j,i)=Hm;
+
 
         }
     }
@@ -185,26 +176,43 @@ cout<<"*************"<<endl;*/
 
           const double val=pow(eigvec.at(BASISSIZE-1,j),2);
           double val2=0;
-          //double val3=0;
+          double val3=0;
           for(size_t k=0;k<BASISSIZE;k++)
           {
               val2+=(__builtin_popcount(BasisMat.at(k))- (L*1.-__builtin_popcount(BasisMat.at(k))))/L*norm(eigvec.at(k,j));
           }
-            cout<<real(eigval(j))<<" "<<val2<<endl;
-         /* mat B = reshape(eigvec.col(j), NumberOfstatesLessHalfChain,BASISSIZE/NumberOfstatesLessHalfChain);
+           // cout<<real(eigval(j))<<" "<<val2<<endl;
+          mat fullBasis(1,pow(2,L));
+          size_t cont=0;
+          for(int f=0;f<pow(2,L);f++)
+          {
+              //cout<<f<<" "<<cont<<endl;
+            if(f!=BasisMat.at(cont))
+            {
+                fullBasis.at(f)=0.;
+                continue;
+            }
+            fullBasis.at(f)=eigvec.at(cont,j);
+            if(cont<BASISSIZE-1)cont++;
+          }
+          //cout<<fullBasis<<endl;
+          mat B = reshape(fullBasis, pow(2,L/2),pow(2,L/2));
           mat Reduced=B*B.t();
+
 
           vec eigval2;
           mat eigvec2;
 
+
           eig_sym(eigval2, eigvec2, Reduced);
+
 
           for (size_t h=0;h<eigval2.size();h++)
           {
               const double elem=eigval2.at(h);
-              if(elem>0.0000000000001)val3+=elem*log(elem);
+              if(elem>0.000000000000000001)val3+=elem*log(elem);
           }
-            */
+          //cout<<eigval(j)<<" "<<-val3<<endl;
           Prof->Fill(real(eigval(j)),log10(val));
           Prof2->Fill(real(eigval(j)),val2);
           //Prof3->Fill(eigval(j),-val3);
