@@ -2,8 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
-#include<TH2D.h>
-#include<TFile.h>
+
 #define ARMA_DONT_USE_WRAPPER
 #define ARMA_NO_DEBUG
 #include <armadillo>
@@ -18,22 +17,45 @@ using namespace std;
 using namespace arma;
 
 
-vector<int> BasisMat;
-vector<size_t> Rperiodicity;
-vector<int>Mperiodicity;
-int Z2_index;
-int Z2_state=0;
-int NumberOfstatesLessHalfChain=0;
 
-size_t  L;
-size_t kmomentum;
-int refRotate=0;
-int leftRotate(int n, unsigned int d)
+struct BasNumber
+{
+     int basi;
+    size_t Rperio;
+    int Mperio;
+};
+
+bool ComparStruct(const BasNumber &a,const  int &b) {
+   return(a.basi<b);
+}
+vector<BasNumber> BasisMat;
+
+size_t Read(const string str)
+{
+    size_t var;
+    cout<<"input "<<str<<endl;
+    cin>>var;
+    return var;
+}
+const size_t  L=Read("L");
+const size_t kmomentum=Read("k");
+int RRotate(void)
+{
+    int val=0;
+    for(size_t i=0;i<L;i++)
+    {
+        val+=pow(2,i);
+    }
+    return val;
+
+}
+const int refRotate=RRotate();
+int leftRotate(const int &n, const size_t &d)
 {
     return ((n << d)|(n >> (L - d)))&(refRotate);
 }
 
-int reflect(int number)
+int reflect(const int &number)
 {
     int reflect=0;
     for(size_t j=0;j<L;j++)
@@ -43,19 +65,6 @@ int reflect(int number)
 
     return reflect;
 }
-void createZ2()
-{
-
-    for(size_t i=0;i<L-1;i++)
-    {
-        Z2_state+=((i%2)?0:1)*static_cast<int>(pow(2,i));
-    }
-
-
-}
-
-
-
 void checkstate(const int &number)
 {
 
@@ -75,7 +84,6 @@ void checkstate(const int &number)
             if(shift==number)
             {
                 if((kmomentum%L/(j+1))!=0)return;
-
                 R=j+1;
                 break;
             }
@@ -101,28 +109,20 @@ void checkstate(const int &number)
         reflected=leftRotate(reflected,1);
     }
 
+    const BasNumber a = { .basi = number, .Rperio = R, .Mperio = m };
 
-    BasisMat.push_back(number);
-    Rperiodicity.push_back(R);
-    Mperiodicity.push_back(m);
-    //cout<<"pushing "<<number<<" "<<R<<" "<<m<<endl;
+    BasisMat.push_back(a);
 
     return;
 }
 void CreateBasis()
 {
-    createZ2();
-    for(size_t i=0;i<L;i++)
-    {
-        refRotate+=pow(2,i);
-    }
 
     for (int i = 0; i < pow(2,L); i++)
     {
 
         if(!(i&(leftRotate(i,1))))
         {
-
             checkstate(i);
         }
 
@@ -161,20 +161,10 @@ void representative(const int &number,int &rep,size_t &l)
 int main()
 {
 
-
-    cout<<"Enter L and k"<<endl;
-    cin>>L>>kmomentum;
-
-
+    ofstream outData("outData",std::ofstream::out);
 
     auto start0 = chrono::high_resolution_clock::now();
     CreateBasis();
-/*cout<<"*************"<<endl;
-    for (size_t i=0;i<BasisMat.size();i++)
-    {
-        cout<<BasisMat.at(i)<<" "<<Rperiodicity.at(i)<<" "<<Mperiodicity.at(i)<<endl;
-    }
-cout<<"*************"<<endl;*/
 
     auto start1 = chrono::high_resolution_clock::now();
     cout<<" Elapsed time Creating the Basis " << chrono::duration<double>(start1 - start0).count()<<"s"<<endl;
@@ -183,40 +173,45 @@ cout<<"*************"<<endl;*/
     const size_t BASISSIZE=BasisMat.size();
     cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
     mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
-    for(size_t i=0;i<BASISSIZE;i++)
+    for(vector<BasNumber>::iterator  it=BasisMat.begin();it!= BasisMat.end();it++)
     {
         int five=5;
 
         for(size_t pos=0;pos<L;pos++)
         {
             five=leftRotate(five,1);
-            int number=BasisMat.at(i);
-            //cout<<"number=   "<<number<<endl;
+            int number=it->basi;
+
             if(!(number&(five)))
             {
                 number ^= 1UL << ((pos+2)%L);
-                //cout<<"number2=   "<<number<<endl;
+
                 int rep;
                 size_t l=0;
                 representative(number,rep,l);
 
-                //cout<<"rep=     "<<rep<<endl;
 
-                std::vector<int>::iterator it = std::find(BasisMat.begin(), BasisMat.end(), rep);
-                if (it != BasisMat.end())
+
+                std::vector<BasNumber>::iterator it2 = std::lower_bound(BasisMat.begin(), BasisMat.end(), rep,ComparStruct);
+                if (it2 != BasisMat.end())
                 {
-                    int index = std::distance(BasisMat.begin(), it);
-                    //cout<<"index=  "<<index<<endl;
-                    double val=((Mperiodicity.at(i)==-1)?2.:1.)/((Mperiodicity.at(index)==-1)?2.:1.);
-                    Hamil(i,index)+=sqrt(Rperiodicity.at(i)*val/Rperiodicity.at(index));
+                    const int index = std::distance(BasisMat.begin(), it2);
+                    const int i = std::distance(BasisMat.begin(), it);
 
+                    const double val=((it->Mperio==-1)?2.:1.)/((it2->Mperio==-1)?2.:1.);
+                    Hamil(i,index)+=sqrt(it->Rperio*val/it2->Rperio);
+
+                }
+                else
+                {
+                    cout<<"Error1"<<endl;
                 }
 
             }
 
         }
     }
-    //cout<<Hamil<<endl;
+
 
     auto start2 = chrono::high_resolution_clock::now();
 
@@ -238,46 +233,65 @@ cout<<"*************"<<endl;*/
     cout<<" Elapsed time Diagonalizing Hamiltonian Matrix: " << chrono::duration<double>(start3 - start2).count()<<"s"<<endl;
 
 
+    eigval.save("eigvalues.dat");
+    outData<< left << setw(12)<<"Energy "<< left << setw(12) << "Z1 " << left << setw(12) <<"Z4 " <<left << setw(12) << "X1 " << left << setw(12) <<"S " <<endl;
 
-    TFile *RootFile = new TFile("RootFile.root","RECREATE");
 
-    TH2D* Prof=new TH2D("E_Vs_Log10(overlap)","E_Vs_Log10(overlap)",1000,-20.,20.,1000,-10.,0.);
-      TH2D* Prof2=new TH2D("E_Vs_Z1","E_Vs_Z1",1000,-20.,20.,1000,-0.63,-0.27);
-      TH2D* Prof3=new TH2D("E_Vs_S","E_Vs_S",1000,-20.,20.,1000,0.,7.);
-      //cout<<"out of E   Z1"<<endl;
+
       for(size_t j=0;j<eigval.size();j++)
       {
 
-          const double val=eigvec.at(BASISSIZE-1,j);
-          double val2=0;
+          //const double val=eigvec.at(BASISSIZE-1,j)/sqrt(2.);
+          double Zval=0;
+          double Xval=0;
+          double Z4val=0;
           double val3=0;
           for(size_t k=0;k<BASISSIZE;k++)
           {
-              val2+=(2.*__builtin_popcount(BasisMat.at(k))-L)*1.*pow(eigvec.at(k,j),2)/L;
-          }
-           // cout<<real(eigval(j))<<" "<<val2<<endl;
-         mat fullBasis(1,pow(2,L),fill::zeros);
+              const double vectornorm=pow(eigvec.at(k,j),2);
+              int numero=BasisMat.at(k).basi;
+              Zval+=(2.*__builtin_popcount(numero)-L)*1.*vectornorm;
+              numero=(numero^leftRotate(numero,4));
+              const int nup=  __builtin_popcount(numero);
+              Z4val+=(L-2.*nup)*vectornorm;
 
-          for(int f=0;f<pow(2,L);f++)
+                    for(size_t l=0;l<L;l++)
+                    {
+                        int nu=BasisMat.at(k).basi;
+                        nu ^= 1UL << l;
+                        if(!(nu&(leftRotate(nu,1))))
+                        {
+                            int rep;
+                            size_t l1=0;
+                            representative(nu,rep,l1);
+                            std::vector<BasNumber>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), rep,ComparStruct);
+                            if (it != BasisMat.end())
+                            {
+                                const int index = std::distance(BasisMat.begin(), it);
+                                Xval+=eigvec.at(index,j)*eigvec.at(k,j);
+                            }
+                            else
+                            {
+                                cout<<"Error1"<<endl;
+                            }
+                        }
+
+                    }
+
+          }
+
+         const size_t maxRow=BasisMat.back().basi/pow(2,L/2);
+         const size_t maxcolumn=(BasisMat.back().basi)% static_cast<size_t>(pow(2,L/2));
+         mat fullBasis(maxRow+1,maxcolumn+1,fill::zeros);
+
+          for(size_t f=0;f<BASISSIZE;f++)
           {
-              int theRep;
-              size_t thel;
-              representative(f,theRep,thel);
-              std::vector<int>::iterator it = std::find(BasisMat.begin(), BasisMat.end(), theRep);
-              if (it != BasisMat.end())
-              {
-                  int index = std::distance(BasisMat.begin(), it);
-                  fullBasis.at(f)+=eigvec.at(index,j)*sqrt(((Mperiodicity.at(index)==-1)?0.5:1.)/Rperiodicity.at(index));
-              }
-
-
+              const size_t Row=BasisMat.at(f).basi/pow(2,L/2);
+              const size_t Column=BasisMat.at(f).basi% static_cast<size_t>(pow(2,L/2));
+              fullBasis.at(Row,Column)=eigvec.at(f,j);
           }
-          //cout<<fullBasis<<endl;
-          mat B = reshape(fullBasis, pow(2,L/2),pow(2,L/2));
 
-          mat Reduced=B*B.t();
-
-
+          mat Reduced=fullBasis*fullBasis.t();
           vec eigval2;
           mat eigvec2;
 
@@ -290,19 +304,18 @@ cout<<"*************"<<endl;*/
               const double elem=eigval2.at(h);
               if(elem>0.000000000000000001)val3+=elem*log(elem);
           }
-           cout<<eigval(j)<<" "<<-val3<<endl;
+            outData<< left << setw(12)<<eigval(j)<< left << setw(12) << Zval<< left << setw(12) <<Z4val<< left << setw(12) << Xval<< left << setw(12) <<-val3<<endl;
 
-          Prof->Fill(real(eigval(j)),log10(val));
-          Prof2->Fill(real(eigval(j)),val2);
-          Prof3->Fill(eigval(j),-val3);
+
+          //cout<<eigval(j)<<" "<<-val3<<endl;
+
+
 
 
       }
 
-    Prof->Write();
-    Prof2->Write();
-    Prof3->Write();
-    RootFile->Close();
+
+    outData.close();
 
 
 
