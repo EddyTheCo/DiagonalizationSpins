@@ -172,8 +172,7 @@ int main()
     auto start0 = chrono::high_resolution_clock::now();
     CreateBasis();
 
-    std::vector<BasNumber>::iterator ita = std::lower_bound(BasisMat.begin(), BasisMat.end(), pow(2,L/2),ComparStruct);
-    const size_t Nstates = std::distance(BasisMat.begin(), ita);
+
 
 
     auto start1 = chrono::high_resolution_clock::now();
@@ -251,12 +250,15 @@ int main()
 
       for(size_t j=0;j<eigval.size();j++)
       {
-
+cout<<"WORKING ON EIGVECTOR "<<j<<endl;
           //const double val=eigvec.at(BASISSIZE-1,j)/sqrt(2.);
           double Zval=0;
           double Xval=0;
           double Z4val=0;
           double val3=0;
+          Col<double> vectNorm=square(eigvec.col(j));
+          vectNorm.transform( [](double val) { return (val + 123.0); } );
+
           for(size_t k=0;k<BASISSIZE;k++)
           {
               const double vectornorm=pow(eigvec.at(k,j),2);
@@ -295,64 +297,69 @@ int main()
 
 
 
-         mat Reduced(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
-         for(size_t a=0;a<RESTBASISLHALFSIZE;a++)
-         {
-             const int k1=BasisMatRestrictedLHalf.at(a);
-             int repk1;
-             size_t l1=0;
-             representative(k1,repk1,l1);
-             std::vector<BasNumber>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), repk1,ComparStruct);
-             const int ik1 = std::distance(BasisMat.begin(), it);
+          mat fullBasis(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
+          size_t irow=0;
 
-
-             for(size_t b=a;b<RESTBASISLHALFSIZE;b++)
-             {
-                const int k2=(k1|leftRotate(BasisMatRestrictedLHalf.at(b),L/2));
-                if(!(k2&(leftRotate(k2,1))))
-                {
-                    int repk2;
-                    representative(k2,repk2,l1);
-                    std::vector<BasNumber>::iterator it2 = std::lower_bound(BasisMat.begin(), BasisMat.end(), repk2,ComparStruct);
-                    const int ik2 = std::distance(BasisMat.begin(), it2);
-                    double var=1;
-                    if(it->Mperio==-1)
-                    {
-                        var*=2.;
-                    }
-                    if(it2->Mperio==-1)
-                    {
-                        var*=2.;
-                    }
-                    Reduced.at(a,b)=eigvec.at(ik1,j)*eigvec.at(ik2,j)*sqrt(1./(it->Rperio*it2->Rperio*var));
-                }
-
-
-             }
-         }
-            Reduced=symmatu(Reduced);
-          vec eigval2;
-          mat eigvec2;
-
-
-          eig_sym(eigval2, eigvec2, Reduced);
-
-
-          for (size_t h=0;h<eigval2.size();h++)
+          for(vector<int>::iterator  itR=BasisMatRestrictedLHalf.begin();itR!= BasisMatRestrictedLHalf.end();itR++)
           {
-              const double elem=eigval2.at(h);
-              if(elem>0.000000000000000001)val3+=elem*log(elem);
+              size_t icolumn=0;
+              for(vector<int>::iterator  itL=BasisMatRestrictedLHalf.begin();itL!= BasisMatRestrictedLHalf.end();itL++)
+              {
+
+                    const int num=((*itR)|leftRotate(*itL,L/2));
+
+                    if(!(num&(leftRotate(num,1))))
+                    {
+
+                        int theRep;
+                        size_t thel;
+                        representative(num,theRep,thel);
+
+                        std::vector<BasNumber>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), theRep,ComparStruct);
+
+                        int index = std::distance(BasisMat.begin(), it);
+                        fullBasis.at(irow,icolumn)=eigvec.at(index,j)*
+                                                   sqrt(((it->Mperio==-1)?0.5:1.)/it->Rperio);
+
+
+                    }
+
+
+                    icolumn++;
+
+              }
+
+              irow++;
+
           }
+
+
+           mat Reduced=fullBasis*fullBasis.t();
+
+
+           vec eigval2;
+           mat eigvec2;
+
+
+           eig_sym(eigval2, eigvec2, Reduced);
+
+
+           val3=trace(eigval*log(eigval));
+
+
             outData<< left << setw(12)<<eigval(j)<< left << setw(12) << Zval<< left << setw(12) <<Z4val<< left << setw(12) << Xval<< left << setw(12) <<-val3<<endl;
 
 
-          //cout<<eigval(j)<<" "<<-val3<<endl;
+
 
 
 
 
       }
 
+      auto start4 = chrono::high_resolution_clock::now();
+
+      cout<<" Elapsed time working on eigenvectors: " << chrono::duration<double>(start4 - start3).count()<<"s"<<endl;
 
     outData.close();
 
