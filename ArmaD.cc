@@ -29,6 +29,7 @@ bool ComparStruct(const BasNumber &a,const  int &b) {
    return(a.basi<b);
 }
 vector<BasNumber> BasisMat;
+vector<int> BasisMatRestrictedLHalf;
 
 size_t Read(const string str)
 {
@@ -124,6 +125,11 @@ void CreateBasis()
         if(!(i&(leftRotate(i,1))))
         {
             checkstate(i);
+            if(i<pow(2,L/2))
+            {
+                BasisMatRestrictedLHalf.push_back(i);
+            }
+
         }
 
     }
@@ -166,11 +172,16 @@ int main()
     auto start0 = chrono::high_resolution_clock::now();
     CreateBasis();
 
+    std::vector<BasNumber>::iterator ita = std::lower_bound(BasisMat.begin(), BasisMat.end(), pow(2,L/2),ComparStruct);
+    const size_t Nstates = std::distance(BasisMat.begin(), ita);
+
+
     auto start1 = chrono::high_resolution_clock::now();
     cout<<" Elapsed time Creating the Basis " << chrono::duration<double>(start1 - start0).count()<<"s"<<endl;
     cout<<"Creating Hamiltonian matrix"<<endl;
 
     const size_t BASISSIZE=BasisMat.size();
+    const size_t RESTBASISLHALFSIZE=BasisMatRestrictedLHalf.size();
     cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
     mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
     for(vector<BasNumber>::iterator  it=BasisMat.begin();it!= BasisMat.end();it++)
@@ -195,8 +206,8 @@ int main()
                 std::vector<BasNumber>::iterator it2 = std::lower_bound(BasisMat.begin(), BasisMat.end(), rep,ComparStruct);
                 if (it2 != BasisMat.end())
                 {
-                    const int index = std::distance(BasisMat.begin(), it2);
-                    const int i = std::distance(BasisMat.begin(), it);
+                    const size_t index = std::distance(BasisMat.begin(), it2);
+                    const size_t i = std::distance(BasisMat.begin(), it);
 
                     const double val=((it->Mperio==-1)?2.:1.)/((it2->Mperio==-1)?2.:1.);
                     Hamil(i,index)+=sqrt(it->Rperio*val/it2->Rperio);
@@ -280,18 +291,46 @@ int main()
 
           }
 
-         const size_t maxRow=BasisMat.back().basi/pow(2,L/2);
-         const size_t maxcolumn=(BasisMat.back().basi)% static_cast<size_t>(pow(2,L/2));
-         mat fullBasis(maxRow+1,maxcolumn+1,fill::zeros);
 
-          for(size_t f=0;f<BASISSIZE;f++)
-          {
-              const size_t Row=BasisMat.at(f).basi/pow(2,L/2);
-              const size_t Column=BasisMat.at(f).basi% static_cast<size_t>(pow(2,L/2));
-              fullBasis.at(Row,Column)=eigvec.at(f,j);
-          }
 
-          mat Reduced=fullBasis*fullBasis.t();
+
+
+         mat Reduced(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
+         for(size_t a=0;a<RESTBASISLHALFSIZE;a++)
+         {
+             const int k1=BasisMatRestrictedLHalf.at(a);
+             int repk1;
+             size_t l1=0;
+             representative(k1,repk1,l1);
+             std::vector<BasNumber>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), repk1,ComparStruct);
+             const int ik1 = std::distance(BasisMat.begin(), it);
+
+
+             for(size_t b=a;b<RESTBASISLHALFSIZE;b++)
+             {
+                const int k2=(k1|leftRotate(BasisMatRestrictedLHalf.at(b),L/2));
+                if(!(k2&(leftRotate(k2,1))))
+                {
+                    int repk2;
+                    representative(k2,repk2,l1);
+                    std::vector<BasNumber>::iterator it2 = std::lower_bound(BasisMat.begin(), BasisMat.end(), repk2,ComparStruct);
+                    const int ik2 = std::distance(BasisMat.begin(), it2);
+                    double var=1;
+                    if(it->Mperio==-1)
+                    {
+                        var*=2.;
+                    }
+                    if(it2->Mperio==-1)
+                    {
+                        var*=2.;
+                    }
+                    Reduced.at(a,b)=eigvec.at(ik1,j)*eigvec.at(ik2,j)*sqrt(1./(it->Rperio*it2->Rperio*var));
+                }
+
+
+             }
+         }
+            Reduced=symmatu(Reduced);
           vec eigval2;
           mat eigvec2;
 
