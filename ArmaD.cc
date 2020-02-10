@@ -18,11 +18,18 @@ using namespace arma;
 
 
 
+struct BasNumber
+{
+     int basi;
+    size_t Rperio;
+    int Mperio;
+};
 
-Row<int>  BasisMat;
-Row<size_t> BasisRPerio;
-Row<int> BasisMPerio;
-Row<int> BasisMatRestrictedLHalf;
+bool ComparStruct(const BasNumber &a,const  int &b) {
+   return(a.basi<b);
+}
+vector<BasNumber> BasisMat;
+vector<int> BasisMatRestrictedLHalf;
 
 size_t Read(const string str)
 {
@@ -103,15 +110,9 @@ void checkstate(const int &number)
         reflected=leftRotate(reflected,1);
     }
 
-    const size_t sz = BasisMat.size();
-        BasisMat.resize(sz+1);
-        BasisMat(sz) = number;
-        BasisRPerio.resize(sz+1);
-        BasisRPerio(sz) = R;
-        BasisMPerio.resize(sz+1);
-        BasisMPerio(sz) = m;
+    const BasNumber a = { .basi = number, .Rperio = R, .Mperio = m };
 
-
+    BasisMat.push_back(a);
 
     return;
 }
@@ -126,10 +127,7 @@ void CreateBasis()
             checkstate(i);
             if(i<pow(2,L/2))
             {
-                const size_t sz = BasisMatRestrictedLHalf.size();
-                    BasisMatRestrictedLHalf.resize(sz+1);
-                    BasisMatRestrictedLHalf(sz) = i;
-
+                BasisMatRestrictedLHalf.push_back(i);
             }
 
         }
@@ -139,7 +137,7 @@ void CreateBasis()
 
 }
 
-void representative(const int &number,int &rep)
+void representative(const int &number,int &rep,size_t &l)
 {
     rep=number;
     int t=number;
@@ -149,7 +147,7 @@ void representative(const int &number,int &rep)
         if(t<rep)
         {
             rep=t;
-
+            l=i;
         }
 
     }
@@ -160,7 +158,7 @@ void representative(const int &number,int &rep)
         if(t<rep)
         {
             rep=t;
-
+            l=i;
         }
         t=leftRotate(t,1);
     }
@@ -185,41 +183,44 @@ int main()
     const size_t RESTBASISLHALFSIZE=BasisMatRestrictedLHalf.size();
     cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
     mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
-    int five=5;
-
-    for(size_t pos=0;pos<L;pos++)
+    for(vector<BasNumber>::iterator  it=BasisMat.begin();it!= BasisMat.end();it++)
     {
-        five=leftRotate(five,1);
+        int five=5;
 
-
-        BasisMat.for_each( [five,pos,&Hamil](const int number) {
+        for(size_t pos=0;pos<L;pos++)
+        {
+            five=leftRotate(five,1);
+            int number=it->basi;
 
             if(!(number&(five)))
             {
+                number ^= 1UL << ((pos+2)%L);
 
-                const int varnumber =number^ 1UL << ((pos+2)%L);
                 int rep;
-                representative(varnumber,rep);
+                size_t l=0;
+                representative(number,rep,l);
 
-                uvec q1 = find(BasisMat == rep,1);
-                uvec q2 = find(BasisMat == number,1);
 
-                Hamil.at(q2.at(0),q1.at(0))+=sqrt(1.*BasisRPerio.at(q2.at(0))*((BasisMPerio.at(q2.at(0))==-1)?2.:1.)
-                                                  /(BasisRPerio.at(q1.at(0))*((BasisMPerio.at(q1.at(0))==-1)?2.:1.)));
 
+                std::vector<BasNumber>::iterator it2 = std::lower_bound(BasisMat.begin(), BasisMat.end(), rep,ComparStruct);
+                if (it2 != BasisMat.end())
+                {
+                    const size_t index = std::distance(BasisMat.begin(), it2);
+                    const size_t i = std::distance(BasisMat.begin(), it);
+
+                    const double val=((it->Mperio==-1)?2.:1.)/((it2->Mperio==-1)?2.:1.);
+                    Hamil(i,index)+=sqrt(it->Rperio*val/it2->Rperio);
+
+                }
+                else
+                {
+                    cout<<"Error1"<<endl;
+                }
 
             }
 
-
-            } );
-
-
-
-
-
+        }
     }
-
-//cout<<Hamil<<endl;
 
 
     auto start2 = chrono::high_resolution_clock::now();
@@ -249,102 +250,50 @@ int main()
 
       for(size_t j=0;j<eigval.size();j++)
       {
-cout<<"WORKING ON EIGVECTOR "<<eigval.at(j)<<endl;
-
+cout<<"WORKING ON EIGVECTOR "<<j<<endl;
           //const double val=eigvec.at(BASISSIZE-1,j)/sqrt(2.);
-
+          double Zval=0;
           double Xval=0;
-          const Col<double> eivec=eigvec.col(j);
+          double Z4val=0;
           double val3=0;
-          const Col<double> vectNORM=pow(eigvec.col(j),2);
-          Row<int> Zv=BasisMat;
-                  Zv.for_each( []( int &number) {
-                number= (2*__builtin_popcount(number)-L);
-              } );
-
-
-          const double Zval=dot(Zv,vectNORM);
-
-
-          Row<int> Zv4=BasisMat;
-                  Zv4.for_each( []( int &number) {
-                      number=number^leftRotate(number,4);
-                number= (L-2*__builtin_popcount(number));
-              } );
-          const double Z4val=dot(Zv4,vectNORM);
-
-
-          for(size_t l=0;l<L;l++)
+          for(size_t k=0;k<BASISSIZE;k++)
           {
-              rowvec avec=conv_to<rowvec>::from(BasisMat);
-              avec.for_each( [l,&eivec]( double &number) {
+              const double vectornorm=pow(eigvec.at(k,j),2);
+              int numero=BasisMat.at(k).basi;
+              Zval+=(2.*__builtin_popcount(numero)-L)*1.*vectornorm;
+              numero=(numero^leftRotate(numero,4));
+              const int nup=  __builtin_popcount(numero);
+              Z4val+=(L-2.*nup)*vectornorm;
 
-                  const int varnumber =static_cast<int>(number)^ 1UL << l;
-                  if(!(varnumber&(leftRotate(varnumber,1))))
-                  {
-                      int rep;
-                      representative(varnumber,rep);
-                      uvec q1 = find(BasisMat == rep,1);
-                      number=eivec.at(q1.at(0));
+                    for(size_t l=0;l<L;l++)
+                    {
+                        int nu=BasisMat.at(k).basi;
+                        nu ^= 1UL << l;
+                        if(!(nu&(leftRotate(nu,1))))
+                        {
+                            int rep;
+                            size_t l1=0;
+                            representative(nu,rep,l1);
+                            std::vector<BasNumber>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), rep,ComparStruct);
+                            if (it != BasisMat.end())
+                            {
+                                const int index = std::distance(BasisMat.begin(), it);
+                                Xval+=eigvec.at(index,j)*eigvec.at(k,j);
+                            }
+                            else
+                            {
+                                cout<<"Error1"<<endl;
+                            }
+                        }
 
-                  }
-                  else
-                  {
-                      number=0.;
-                  }
-
-
-              } );
-
-              Xval+=dot(eivec,avec);
+                    }
 
           }
 
 
-           mat fullBasis(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
-
-           for( size_t d=0;d<BasisMatRestrictedLHalf.size();d++)
-           {
-               const int a=BasisMatRestrictedLHalf.at(d);
-                rowvec avec=conv_to<rowvec>::from(BasisMatRestrictedLHalf);
-                avec.for_each( [&eivec,&a]( double &number) {
-
-                    const int num=((a)|leftRotate(number,L/2));
-
-                    if(!(num&(leftRotate(num,1))))
-                    {
-
-                        int theRep;
-
-                        representative(num,theRep);
-
-                        uvec q1 = find(BasisMat == theRep,1);
-
-                        number=eivec.at(q1.at(0))*
-                                sqrt(((BasisMPerio.at(q1.at(0))==-1)?0.5:1.)/BasisRPerio.at(q1.at(0)));
-
-                    }
-                    else
-                    {
-                        number=0.;
-                    }
 
 
-                } );
 
-                fullBasis.row(d)=avec;
-           }
-           mat Reduced=fullBasis*fullBasis.t();
-
-
-           vec eigval2;
-           mat eigvec2;
-
-
-           eig_sym(eigval2, eigvec2, Reduced);
-           val3=trace(eigval2.t()*trunc_log(eigval2));
-
-/*
           mat fullBasis(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
           size_t irow=0;
 
@@ -390,10 +339,12 @@ cout<<"WORKING ON EIGVECTOR "<<eigval.at(j)<<endl;
 
 
            eig_sym(eigval2, eigvec2, Reduced);
+
+
            val3=trace(eigval2.t()*trunc_log(eigval2));
 
-*/
-           outData<< left << setw(12)<<eigval(j)<< left << setw(12) << Zval<< left << setw(12) <<Z4val<< left << setw(12) << Xval<< left << setw(12) <<-val3<<endl;
+
+            outData<< left << setw(12)<<eigval(j)<< left << setw(12) << Zval<< left << setw(12) <<Z4val<< left << setw(12) << Xval<< left << setw(12) <<-val3<<endl;
 
 
 
