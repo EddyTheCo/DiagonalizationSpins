@@ -22,7 +22,7 @@ using namespace arma;
 Row<int>  BasisMat;
 Row<size_t> BasisRPerio;
 Row<int> BasisMPerio;
-vector<int> BasisMatRestrictedLHalf;
+Row<int> BasisMatRestrictedLHalf;
 
 size_t Read(const string str)
 {
@@ -126,7 +126,10 @@ void CreateBasis()
             checkstate(i);
             if(i<pow(2,L/2))
             {
-                BasisMatRestrictedLHalf.push_back(i);
+                const size_t sz = BasisMatRestrictedLHalf.size();
+                    BasisMatRestrictedLHalf.resize(sz+1);
+                    BasisMatRestrictedLHalf(sz) = i;
+
             }
 
         }
@@ -246,12 +249,12 @@ int main()
 
       for(size_t j=0;j<eigval.size();j++)
       {
-//cout<<"WORKING ON EIGVECTOR "<<eigval.at(j)<<endl;
+cout<<"WORKING ON EIGVECTOR "<<eigval.at(j)<<endl;
 
           //const double val=eigvec.at(BASISSIZE-1,j)/sqrt(2.);
 
           double Xval=0;
-
+          const Col<double> eivec=eigvec.col(j);
           double val3=0;
           const Col<double> vectNORM=pow(eigvec.col(j),2);
           Row<int> Zv=BasisMat;
@@ -273,24 +276,75 @@ int main()
 
           for(size_t l=0;l<L;l++)
           {
+              rowvec avec=conv_to<rowvec>::from(BasisMat);
+              avec.for_each( [l,&eivec]( double &number) {
 
-              BasisMat.for_each( [l,vectNORM,&Xval](const int &number) {
+                  const int varnumber =static_cast<int>(number)^ 1UL << l;
+                  if(!(varnumber&(leftRotate(varnumber,1))))
+                  {
+                      int rep;
+                      representative(varnumber,rep);
+                      uvec q1 = find(BasisMat == rep,1);
+                      number=eivec.at(q1.at(0));
 
-                      const int varnumber =number^ 1UL << l;
-                      if(!(varnumber&(leftRotate(varnumber,1))))
-                      {
-                          int rep;
-                          representative(varnumber,rep);
-                          uvec q1 = find(BasisMat == rep,1);
-                          Xval+=vectNORM.at(q1.at(0));
+                  }
+                  else
+                  {
+                      number=0.;
+                  }
 
-                      }
-                  } );
+
+              } );
+
+              Xval+=dot(eivec,avec);
 
           }
 
 
-          /*
+           mat fullBasis(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
+
+           for( size_t d=0;d<BasisMatRestrictedLHalf.size();d++)
+           {
+               const int a=BasisMatRestrictedLHalf.at(d);
+                rowvec avec=conv_to<rowvec>::from(BasisMatRestrictedLHalf);
+                avec.for_each( [&eivec,&a]( double &number) {
+
+                    const int num=((a)|leftRotate(number,L/2));
+
+                    if(!(num&(leftRotate(num,1))))
+                    {
+
+                        int theRep;
+
+                        representative(num,theRep);
+
+                        uvec q1 = find(BasisMat == theRep,1);
+
+                        number=eivec.at(q1.at(0))*
+                                sqrt(((BasisMPerio.at(q1.at(0))==-1)?0.5:1.)/BasisRPerio.at(q1.at(0)));
+
+                    }
+                    else
+                    {
+                        number=0.;
+                    }
+
+
+                } );
+
+                fullBasis.row(d)=avec;
+           }
+           mat Reduced=fullBasis*fullBasis.t();
+
+
+           vec eigval2;
+           mat eigvec2;
+
+
+           eig_sym(eigval2, eigvec2, Reduced);
+           val3=trace(eigval2.t()*trunc_log(eigval2));
+
+/*
           mat fullBasis(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
           size_t irow=0;
 
