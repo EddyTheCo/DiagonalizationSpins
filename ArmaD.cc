@@ -246,7 +246,7 @@ int main()
 
       for(size_t j=0;j<eigval.size();j++)
       {
-cout<<"WORKING ON EIGVECTOR "<<eigval.at(j)<<endl;
+//cout<<"WORKING ON EIGVECTOR "<<eigval.at(j)<<endl;
 
           //const double val=eigvec.at(BASISSIZE-1,j)/sqrt(2.);
 
