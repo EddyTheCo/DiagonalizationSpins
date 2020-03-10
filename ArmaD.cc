@@ -17,7 +17,12 @@
 using namespace std;
 using namespace arma;
 
+#define PXP
+#define LENGHT 20
+#define INTTYPE int
 #define USEPARITY
+
+
 #ifdef USEPARITY
 #define PARITY1
 #ifdef PARITY1
@@ -29,16 +34,16 @@ const string ap="P2";
 const string ap="FULL";
 #endif
 
-#define PPPXPPP
-#include<bits/stdc++.h>
 
+#include<bits/stdc++.h>
+//#include <bitset>
 
 
 
 
 struct BasNumber
 {
-     int basi;
+     INTTYPE basi;
     size_t Rperio;
 #ifdef PARITY1
     int Mperio;
@@ -46,38 +51,42 @@ struct BasNumber
 };
 
 #ifdef PXP
-int five=5;
+INTTYPE five=5;
 #define NOFPS 1
 #define CHECKUPS(i) (i&(leftRotate(i,1)))
 #endif
 #ifdef PPXPP
-int five=27;
+INTTYPE five=27;
 #define CHECKUPS(i) ((i&(leftRotate(i,1)))||(i&(leftRotate(i,2))))
 #define NOFPS 2
 #endif
 #ifdef PPPXPPP
-int five=119;
+INTTYPE five=119;
 #define CHECKUPS(i) ((i&(leftRotate(i,1)))||(i&(leftRotate(i,2)))||(i&(leftRotate(i,3))))
 #define NOFPS 3
 #endif
-bool ComparStruct(const BasNumber &a,const  int &b) {
+#ifdef PPPPXPPPP
+INTTYPE five=495;
+#define CHECKUPS(i) ((i&(leftRotate(i,1)))||(i&(leftRotate(i,2)))||(i&(leftRotate(i,3)))||(i&(leftRotate(i,4))))
+#define NOFPS 4
+#endif
+#ifdef PPPPPXPPPPP
+INTTYPE five=2015;
+#define CHECKUPS(i) ((i&(leftRotate(i,1)))||(i&(leftRotate(i,2)))||(i&(leftRotate(i,3)))||(i&(leftRotate(i,4)))||(i&(leftRotate(i,5))))
+#define NOFPS 5
+#endif
+bool ComparStruct(const BasNumber &a,const  INTTYPE &b) {
    return(a.basi<b);
 }
 vector<BasNumber> BasisMat;
 vector<int> BasisMatRestrictedLHalf;
 
-size_t Read(const string str)
-{
-    size_t var;
-    cout<<"input "<<str<<endl;
-    cin>>var;
-    return var;
-}
-const size_t  L=Read("L");
+
+
 void PRINTINFO(const size_t &Ba)
 {
     ofstream INFO("INFO"+ap,std::ofstream::out);
-    INFO<<"This execution was for the model";
+
 #ifdef PXP
 INFO<<" pxp"<<endl;
 #endif
@@ -87,61 +96,68 @@ INFO<<" ppxpp"<<endl;
 #ifdef PPPXPPP
 INFO<<" pppxppp"<<endl;
 #endif
+#ifdef PPPPXPPPP
+INFO<<" ppppxpppp"<<endl;
+#endif
+#ifdef PPPPPXPPPPP
+INFO<<" pppppxppppp"<<endl;
+#endif
 #ifdef USEPARITY
 #ifdef PARITY1
-INFO<<"Using parity 1"<<endl;
+INFO<<"parity 1"<<endl;
 #else
-INFO<<"Using parity 2"<<endl;
+INFO<<"parity 2"<<endl;
 #endif
 #else
 INFO<<"Without parity"<<endl;
 #endif
-INFO<<"and L="<<L<<" with a size of the basis of "<<Ba<<" elements"<<endl;
+INFO<<"L="<<LENGHT<<endl;
+INFO<<"basis="<<Ba<<" elements"<<endl;
 INFO.close();
 }
 
 
 //const size_t kmomentum=Read("k 0 or L/2");
 #ifdef USEPARITY
-int reflect(const int &number)
+INTTYPE reflect(const INTTYPE &number)
 {
-    int reflect=0;
-    for(size_t j=0;j<L;j++)
+    INTTYPE reflect=0;
+    for(size_t j=0;j<LENGHT;j++)
     {
-        if(number&(1<<j))reflect=reflect|(1<<(L-1-j));
+        if(number&(1ULL<<j))reflect=reflect|(1ULL<<(LENGHT-1-j));
+
     }
 
     return reflect;
 }
 #endif
-int RRotate(void)
+INTTYPE RRotate(void)
 {
-    int val=0;
-    for(size_t i=0;i<L;i++)
+    INTTYPE val=0;
+    for(size_t i=0;i<LENGHT;i++)
     {
-        val+=pow(2,i);
+        val=val|(1ULL<<i);
     }
     return val;
 
 }
-const int refRotate=RRotate();
+const INTTYPE refRotate=RRotate();
 
-int leftRotate(const int &n, const size_t &d)
+INTTYPE leftRotate(const INTTYPE &n, const INTTYPE &d)
 {
 
-    return ((n << d)|(n >> (L - d)))&(refRotate);
-
+    return (((n << d)|(n >> (LENGHT - d)))&(refRotate));
 
 }
 
 
-void checkstate(const int &number)
+void checkstate(const INTTYPE &number)
 {
 
-    int shift=number;
+    INTTYPE shift=number;
     size_t R;
 
-    for(size_t j=0;j<L;j++)
+    for(size_t j=0;j<LENGHT;j++)
     {
         shift=leftRotate(shift,1);
 
@@ -162,7 +178,8 @@ void checkstate(const int &number)
     }
 #ifdef USEPARITY
     int m=-1;
-    int reflected=reflect(number);
+    INTTYPE reflected=reflect(number);
+
     for (size_t j=0;j<R;j++)
     {
         if(reflected<number)
@@ -199,46 +216,70 @@ const BasNumber a = { .basi = number, .Rperio = R};
 void CreateBasis()
 {
 
-    for (int i = 0; i < pow(2,L); i++)
+    INTTYPE first=0;
+    checkstate(first);
+    BasisMatRestrictedLHalf.push_back(0);
+    vector<INTTYPE> VAR;
+    VAR.push_back(0);
+    for(size_t i=0;i<LENGHT;i++)
     {
-cout<<i<<endl;
-        if(!CHECKUPS(i))
+
+        const size_t BAS=VAR.size();
+
+
+        for(size_t g=0;g<BAS;g++)
         {
-            checkstate(i);
-            if(i<pow(2,L/2))
+
+            const INTTYPE num=(VAR.at(g))|leftRotate(1,i);
+
+
+            if(!CHECKUPS(num))
             {
-                BasisMatRestrictedLHalf.push_back(i);
+                VAR.push_back(num);
+
+                checkstate(num);
+                if(num<pow(2,LENGHT/2))
+                {
+                    BasisMatRestrictedLHalf.push_back(num);
+                }
+
             }
 
+
         }
+
+
+
 
     }
 
 
+
+
+
 }
 
-void representative(const int &number,int &rep,size_t &l
+void representative(const INTTYPE &number,INTTYPE &rep
                     #ifdef PARITY2
                     ,double &signo
                     #endif
                     )
 {
     rep=number;
-    int t=number;
-    for(size_t i=1;i<L;i++)
+    INTTYPE t=number;
+    for(size_t i=1;i<LENGHT;i++)
     {
         t=leftRotate(t,1);
         if(t<rep)
         {
             rep=t;
-            l=i;
         }
 
     }
 
 #ifdef USEPARITY
      t=reflect(number);
-    for(size_t i=0;i<L;i++)
+    for(size_t i=0;i<LENGHT;i++)
     {
 
         if(t<rep)
@@ -247,7 +288,7 @@ void representative(const int &number,int &rep,size_t &l
 #ifdef PARITY2
             signo=-1.;
 #endif
-            l=i;
+
         }
 #ifdef PARITY2
         if(t==number)
@@ -272,6 +313,7 @@ int main()
     auto start0 = chrono::high_resolution_clock::now();
     CreateBasis();
 
+
     auto start1 = chrono::high_resolution_clock::now();
     cout<<" Elapsed time Creating the Basis " << chrono::duration<double>(start1 - start0).count()<<"s"<<endl;
     cout<<"Creating Hamiltonian matrix"<<endl;
@@ -284,23 +326,23 @@ int main()
     mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
     for(vector<BasNumber>::iterator  it=BasisMat.begin();it!= BasisMat.end();it++)
     {
-        for(size_t pos=0;pos<L;pos++)
+        for(size_t pos=0;pos<LENGHT;pos++)
         {
             five=leftRotate(five,1);
-            int number=it->basi;
+            INTTYPE number=it->basi;
 
             if(!(number&(five)))
             {
 
-                number ^= 1UL << ((pos+1+NOFPS)%L);
+                number ^= 1ULL << ((pos+1+NOFPS)%LENGHT);
 
-                int rep;
-                size_t l=0;
+                INTTYPE rep;
+
 #ifdef PARITY2
                 double signo=1.;
-                representative(number,rep,l,signo);
+                representative(number,rep,signo);
 #else
-                representative(number,rep,l);
+                representative(number,rep);
 #endif
 #ifdef PARITY2
                 if(rep!=-1)
@@ -383,33 +425,33 @@ int main()
           for(size_t k=0;k<BASISSIZE;k++)
           {
               const double vectornorm=pow(eigvec.at(k,j),2);
-              int numero=BasisMat.at(k).basi;
-              const int constnum=numero;
-              Zval.at(0)+=(2.*__builtin_popcount(numero)-L)*vectornorm;
-              int mult=constnum;
-              for(size_t m=1;m<=L/2;m++)
+              INTTYPE numero=BasisMat.at(k).basi;
+              const INTTYPE constnum=numero;
+              Zval.at(0)+=(2.*__builtin_popcount(numero)-LENGHT)*vectornorm;
+              INTTYPE mult=constnum;
+              for(size_t m=1;m<=LENGHT/2;m++)
               {
                   numero=leftRotate(numero,1);
                   mult^=(numero);
-                  Zval.at(m)+=(L-2.*__builtin_popcount(constnum^numero))*vectornorm;
-                  ZvalMult.at(m-1)+=(L-2.*__builtin_popcount(mult))*vectornorm;
+                  Zval.at(m)+=(LENGHT-2.*__builtin_popcount(constnum^numero))*vectornorm;
+                  ZvalMult.at(m-1)+=(LENGHT-2.*__builtin_popcount(mult))*vectornorm;
                   mult^=(refRotate);
 
-                  for(size_t pos=0;pos<L;pos++)
+                  for(size_t pos=0;pos<LENGHT;pos++)
                   {
 
-                          int number=BasisMat.at(k).basi;
-                          number ^= 1UL << ((pos)%L);
-                          number ^= 1UL << ((pos+m)%L);
+                          INTTYPE number=BasisMat.at(k).basi;
+                          number ^= 1ULL << ((pos)%LENGHT);
+                          number ^= 1ULL << ((pos+m)%LENGHT);
                           if(!CHECKUPS(number))
                           {
-                              int rep;
-                              size_t l=0;
+                              INTTYPE rep;
+
               #ifdef PARITY2
                               double signo=1.;
-                              representative(number,rep,l,signo);
+                              representative(number,rep,signo);
               #else
-                              representative(number,rep,l);
+                              representative(number,rep);
               #endif
               #ifdef PARITY2
                               if(rep!=-1)
@@ -461,17 +503,17 @@ int main()
               for(vector<int>::iterator  itL=BasisMatRestrictedLHalf.begin();itL!= BasisMatRestrictedLHalf.end();itL++)
               {
 
-                    const int num=((*itR)|leftRotate(*itL,L/2));
+                    const INTTYPE num=((*itR)|leftRotate(*itL,LENGHT/2));
 
                     if(!CHECKUPS(num))
                     {
-                        int theRep;
-                        size_t thel;
+                        INTTYPE theRep;
+
 #ifdef PARITY2
                         double signo=1.;
-                        representative(num,theRep,thel,signo);
+                        representative(num,theRep,signo);
 #else
-                        representative(num,theRep,thel);
+                        representative(num,theRep);
 #endif
 #ifdef PARITY2
                         if(theRep!=-1)
@@ -479,7 +521,7 @@ int main()
                         {
                             std::vector<BasNumber>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), theRep,ComparStruct);
 
-                            int index = std::distance(BasisMat.begin(), it);
+                            const size_t index = std::distance(BasisMat.begin(), it);
                             #ifdef USEPARITY
 #ifdef PARITY1
                             fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*
@@ -530,7 +572,7 @@ int main()
     ZvalMultout<< left << setw(14);
     Xvalout<< left << setw(14);
 
-    for(size_t p=0;p<L/2;p++)
+    for(size_t p=0;p<LENGHT/2;p++)
     {
         Zvalout<<Zval.at(p)<< left << setw(14);
         ZvalMultout<<ZvalMult.at(p)<< left << setw(14);
