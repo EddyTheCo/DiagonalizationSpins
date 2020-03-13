@@ -21,6 +21,7 @@ using namespace arma;
 #define LENGHT 20
 #define INTTYPE int
 #define USEPARITY
+#define OBC
 
 
 #ifdef USEPARITY
@@ -49,30 +50,35 @@ struct BasNumber
     int Mperio;
 #endif
 };
+#ifdef OBC
+#define LEFTROT(a,b) leftRotateOBC(a,b)
+#else
+#define LEFTROT(a,b) leftRotate(a,b)
+#endif
 
 #ifdef PXP
 INTTYPE five=5;
 #define NOFPS 1
-#define CHECKUPS(i) (i&(leftRotate(i,1)))
+#define CHECKUPS(i) (i&(LEFTROT(i,1)))
 #endif
 #ifdef PPXPP
 INTTYPE five=27;
-#define CHECKUPS(i) ((i&(leftRotate(i,1)))||(i&(leftRotate(i,2))))
+#define CHECKUPS(i) ((i&(LEFTROT(i,1)))||(i&(LEFTROT(i,2))))
 #define NOFPS 2
 #endif
 #ifdef PPPXPPP
 INTTYPE five=119;
-#define CHECKUPS(i) ((i&(leftRotate(i,1)))||(i&(leftRotate(i,2)))||(i&(leftRotate(i,3))))
+#define CHECKUPS(i) ((i&(LEFTROT(i,1)))||(i&(LEFTROT(i,2)))||(i&(LEFTROT(i,3))))
 #define NOFPS 3
 #endif
 #ifdef PPPPXPPPP
 INTTYPE five=495;
-#define CHECKUPS(i) ((i&(leftRotate(i,1)))||(i&(leftRotate(i,2)))||(i&(leftRotate(i,3)))||(i&(leftRotate(i,4))))
+#define CHECKUPS(i) ((i&(LEFTROT(i,1)))||(i&(LEFTROT(i,2)))||(i&(LEFTROT(i,3)))||(i&(LEFTROT(i,4))))
 #define NOFPS 4
 #endif
 #ifdef PPPPPXPPPPP
 INTTYPE five=2015;
-#define CHECKUPS(i) ((i&(leftRotate(i,1)))||(i&(leftRotate(i,2)))||(i&(leftRotate(i,3)))||(i&(leftRotate(i,4)))||(i&(leftRotate(i,5))))
+#define CHECKUPS(i) ((i&(LEFTROT(i,1)))||(i&(LEFTROT(i,2)))||(i&(LEFTROT(i,3)))||(i&(LEFTROT(i,4)))||(i&(LEFTROT(i,5))))
 #define NOFPS 5
 #endif
 bool ComparStruct(const BasNumber &a,const  INTTYPE &b) {
@@ -113,6 +119,11 @@ INFO<<"Without parity"<<endl;
 #endif
 INFO<<"L="<<LENGHT<<endl;
 INFO<<"basis="<<Ba<<" elements"<<endl;
+#ifdef OBC
+INFO<<"OBC"<<endl;
+#else
+INFO<<"PBC"<<endl;
+#endif
 INFO.close();
 }
 
@@ -125,7 +136,6 @@ INTTYPE reflect(const INTTYPE &number)
     for(size_t j=0;j<LENGHT;j++)
     {
         if(number&(1ULL<<j))reflect=reflect|(1ULL<<(LENGHT-1-j));
-
     }
 
     return reflect;
@@ -149,7 +159,12 @@ INTTYPE leftRotate(const INTTYPE &n, const INTTYPE &d)
     return (((n << d)|(n >> (LENGHT - d)))&(refRotate));
 
 }
+INTTYPE leftRotateOBC(const INTTYPE &n, const INTTYPE &d)
+{
 
+    return (((n << d))&(refRotate));
+
+}
 
 void checkstate(const INTTYPE &number)
 {
@@ -417,9 +432,9 @@ int main()
 #ifndef PARITY2
           const double overlapNeel=log10(eigvec.at(BASISSIZE-1,j)*eigvec.at(BASISSIZE-1,j));
 #endif
-          std::array<double,30> Zval={0.};
-            std::array<double,30> ZvalMult={0.};
-            std::array<double,30> Xval={0.};
+          std::array<double,LENGHT/2+1> Zval={0.};
+            std::array<double,LENGHT/2+1> ZvalMult={0.};
+            std::array<double,LENGHT/2+1> Xval={0.};
 
           double Sval=0;
           for(size_t k=0;k<BASISSIZE;k++)
@@ -429,7 +444,7 @@ int main()
               const INTTYPE constnum=numero;
               Zval.at(0)+=(2.*__builtin_popcount(numero)-LENGHT)*vectornorm;
               INTTYPE mult=constnum;
-              for(size_t m=1;m<=LENGHT/2;m++)
+              for(size_t m=1;m<LENGHT/2;m++)
               {
                   numero=leftRotate(numero,1);
                   mult^=(numero);
