@@ -18,7 +18,7 @@ using namespace std;
 using namespace arma;
 
 #define PXP
-#define LENGHT 20
+#define LENGHT 22
 #define INTTYPE int
 #define USEPARITY
 #define OBC
@@ -45,9 +45,11 @@ const string ap="FULL";
 struct BasNumber
 {
      INTTYPE basi;
+#ifdef PBC
     size_t Rperio;
 #ifdef PARITY1
     int Mperio;
+#endif
 #endif
 };
 #ifdef OBC
@@ -118,7 +120,7 @@ INFO<<"parity 2"<<endl;
 INFO<<"Without parity"<<endl;
 #endif
 INFO<<"L="<<LENGHT<<endl;
-INFO<<"basis="<<Ba<<" elements"<<endl;
+INFO<<"basis="<<Ba<<endl;
 #ifdef OBC
 INFO<<"OBC"<<endl;
 #else
@@ -153,22 +155,34 @@ INTTYPE RRotate(void)
 }
 const INTTYPE refRotate=RRotate();
 
-INTTYPE leftRotate(const INTTYPE &n, const INTTYPE &d)
+INTTYPE leftRotate(const INTTYPE &n, const int &d)
 {
-
-    return (((n << d)|(n >> (LENGHT - d)))&(refRotate));
+    if(d>=0)
+    {
+        return (((n << d)|(n >> (LENGHT - d)))&(refRotate));
+    }
+    else
+    {
+        return (((n >> (-1*d))|(n << (LENGHT + d)))&(refRotate));
+    }
 
 }
-INTTYPE leftRotateOBC(const INTTYPE &n, const INTTYPE &d)
+INTTYPE leftRotateOBC(const INTTYPE &n, const int &d)
 {
-
-    return (((n << d))&(refRotate));
+    if(d>=0)
+    {
+        return (((n << d))&(refRotate));
+    }
+    else
+    {
+        return (((n >> (-1*d)))&(refRotate));
+    }
 
 }
 
 void checkstate(const INTTYPE &number)
 {
-
+#ifdef PBC
     INTTYPE shift=number;
     size_t R;
 
@@ -191,10 +205,13 @@ void checkstate(const INTTYPE &number)
         }
 
     }
-#ifdef USEPARITY
-    int m=-1;
-    INTTYPE reflected=reflect(number);
+#endif
 
+#ifdef USEPARITY
+
+    INTTYPE reflected=reflect(number);
+#ifdef PBC
+    int m=-1;
     for (size_t j=0;j<R;j++)
     {
         if(reflected<number)
@@ -218,10 +235,23 @@ void checkstate(const INTTYPE &number)
 #else
     const BasNumber a = { .basi = number, .Rperio = R, .Mperio = m };
 #endif
-
+#else
+    if(reflected<number)
+    {
+        return;
+    }
+#ifdef PARITY2
+    if(reflected==number)return;
+#endif
+    const BasNumber a = { .basi = number};
+#endif
 
 #else
+#ifdef PBC
 const BasNumber a = { .basi = number, .Rperio = R};
+#else
+    const BasNumber a = { .basi = number};
+#endif
 #endif
 
     BasisMat.push_back(a);
@@ -250,6 +280,7 @@ void CreateBasis()
 
             if(!CHECKUPS(num))
             {
+
                 VAR.push_back(num);
 
                 checkstate(num);
@@ -282,6 +313,8 @@ void representative(const INTTYPE &number,INTTYPE &rep
 {
     rep=number;
     INTTYPE t=number;
+#ifdef PBC
+
     for(size_t i=1;i<LENGHT;i++)
     {
         t=leftRotate(t,1);
@@ -291,9 +324,10 @@ void representative(const INTTYPE &number,INTTYPE &rep
         }
 
     }
-
+#endif
 #ifdef USEPARITY
-     t=reflect(number);
+    t=reflect(number);
+#ifdef PBC
     for(size_t i=0;i<LENGHT;i++)
     {
 
@@ -316,6 +350,23 @@ void representative(const INTTYPE &number,INTTYPE &rep
         t=leftRotate(t,1);
 
     }
+#else
+    if(t<rep)
+    {
+        rep=t;
+#ifdef PARITY2
+            signo=-1.;
+#endif
+    }
+#ifdef PARITY2
+    if(t==number)
+    {
+        rep=-1;
+        return;
+    }
+#endif
+
+#endif
 #endif
 }
 int main()
@@ -329,6 +380,8 @@ int main()
     CreateBasis();
 
 
+std::cout << std::bitset<12>(BasisMat.back().basi)<<endl;
+
     auto start1 = chrono::high_resolution_clock::now();
     cout<<" Elapsed time Creating the Basis " << chrono::duration<double>(start1 - start0).count()<<"s"<<endl;
     cout<<"Creating Hamiltonian matrix"<<endl;
@@ -339,17 +392,21 @@ int main()
     cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
     PRINTINFO(BASISSIZE);
     mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
+
     for(vector<BasNumber>::iterator  it=BasisMat.begin();it!= BasisMat.end();it++)
     {
         for(size_t pos=0;pos<LENGHT;pos++)
         {
-            five=leftRotate(five,1);
+
+            INTTYPE fiveVar=LEFTROT(five,pos-NOFPS);
+
             INTTYPE number=it->basi;
 
-            if(!(number&(five)))
+            if(!(number&(fiveVar)))
             {
 
-                number ^= 1ULL << ((pos+1+NOFPS)%LENGHT);
+
+                number ^= 1ULL << pos;
 
                 INTTYPE rep;
 
@@ -371,15 +428,28 @@ int main()
 
 #ifdef USEPARITY
 #ifdef PARITY1
+#ifdef PBC
                         const double val=((it->Mperio==-1)?2.:1.)/((it2->Mperio==-1)?2.:1.);
                         Hamil(i,index)+=sqrt(it->Rperio*val/it2->Rperio)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+#else
+                        Hamil(i,index)+=sqrt(((it->basi!=reflect(it->basi))?2.:1.)/((rep!=reflect(rep))?2.:1.));
+#endif
+
 #endif
 #ifdef PARITY2
+#ifdef PBC
                         Hamil(i,index)+=sqrt(it->Rperio*1./it2->Rperio)/*((kmomentum==0)?1.:(pow(-1.,l)))*/*signo;
+#else
+                        Hamil(i,index)+=signo;
+#endif
 #endif
 
 #else
+#ifdef PBC
                         Hamil(i,index)+=sqrt(it->Rperio*1./it2->Rperio)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+#else
+                        Hamil(i,index)+=1;
+#endif
 #endif
 
                     }
@@ -389,6 +459,7 @@ int main()
                     }
 
                 }
+
 
 
             }
@@ -419,19 +490,15 @@ int main()
 
     eigval.save("eigvalues.dat");
 
-#ifdef PARITY2
-    outData<< left << setw(14)<<"Energy "<<left << setw(14)  <<"S " <<endl;
-#else
-    outData<< left << setw(14)<<"Energy "<< left << setw(14) << "NEELOverlap "<<left << setw(14)  <<"S " <<endl;
-#endif
 
+    outData<< left << setw(14)<<"Energy "<<left << setw(14)  <<"S " <<endl;
+    Zvalout<<" Z1   Z1Z2"<<endl;
+    ZvalMultout<<" Z1Z2   Z1Z23"<<endl;
+    Xvalout<<" X1X2   X1X3"<<endl;
 
       for(size_t j=0;j<eigval.size();j++)
       {
           cout<<"WORKING ON EIGVECTOR "<<j<<endl;
-#ifndef PARITY2
-          const double overlapNeel=log10(eigvec.at(BASISSIZE-1,j)*eigvec.at(BASISSIZE-1,j));
-#endif
           std::array<double,LENGHT/2+1> Zval={0.};
             std::array<double,LENGHT/2+1> ZvalMult={0.};
             std::array<double,LENGHT/2+1> Xval={0.};
@@ -480,15 +547,27 @@ int main()
 
               #ifdef USEPARITY
               #ifdef PARITY1
+#ifdef PBC
                                       const double val=((BasisMat.at(k).Mperio==-1)?2.:1.)/((it2->Mperio==-1)?2.:1.);
                                       Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*val/it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+#else
+                                      Xval.at(m-1)+=sqrt(((BasisMat.at(k).basi!=reflect(BasisMat.at(k).basi))?2.:1.)/((rep!=reflect(rep))?2.:1.))*eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+#endif
               #endif
               #ifdef PARITY2
+#ifdef PBC
                                       Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*1./it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/*signo;
+#else
+                                      Xval.at(m-1)+=eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/*signo;
+#endif
               #endif
 
               #else
+#ifdef PBC
                                       Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*1./it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+#else
+                                      Xval.at(m-1)+=eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+#endif
               #endif
 
                                   }
@@ -537,19 +616,31 @@ int main()
                             std::vector<BasNumber>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), theRep,ComparStruct);
 
                             const size_t index = std::distance(BasisMat.begin(), it);
-                            #ifdef USEPARITY
+#ifdef USEPARITY
 #ifdef PARITY1
+#ifdef PBC
                             fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*
                                                        sqrt(((it->Mperio==-1)?0.5:1.)/it->Rperio);
+#else
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)*(sqrt((theRep!=reflect(theRep)?0.5:1.)))/*((kmomentum==0)?1.:(pow(-1.,thel)))*/;
+#endif
 #endif
 #ifdef PARITY2
+#ifdef PBC
                             fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*
                                                        sqrt(0.5/it->Rperio)*signo;
+#else
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*signo*sqrt(0.5);
+#endif
 #endif
 
                             #else
+#ifdef PBC
                             fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*
                                                        sqrt(1./it->Rperio);
+#else
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/;
+#endif
                             #endif
 
                         }
@@ -578,11 +669,8 @@ int main()
 
 
            Sval=trace(eigval2.t()*trunc_log(eigval2));
-#ifndef PARITY2
-            outData<< left << setw(14)<<eigval(j)<< left << setw(14)<<overlapNeel<< left << setw(14) <<-Sval<<endl;
-#else
-                    outData<< left << setw(14)<<eigval(j)<< left << setw(14) <<-Sval<<endl;
-#endif
+           outData<< left << setw(14)<<eigval(j)<< left << setw(14) <<-Sval<<endl;
+
     Zvalout<< left << setw(14);
     ZvalMultout<< left << setw(14);
     Xvalout<< left << setw(14);
