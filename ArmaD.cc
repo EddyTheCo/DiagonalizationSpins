@@ -380,7 +380,7 @@ int main()
     CreateBasis();
 
 
-std::cout << std::bitset<12>(BasisMat.back().basi)<<endl;
+
 
     auto start1 = chrono::high_resolution_clock::now();
     cout<<" Elapsed time Creating the Basis " << chrono::duration<double>(start1 - start0).count()<<"s"<<endl;
