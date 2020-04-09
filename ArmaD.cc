@@ -17,11 +17,11 @@
 using namespace std;
 using namespace arma;
 
-#define PXP
-#define LENGHT 22
+#define PPPXPPP
+#define LENGHT 28
 #define INTTYPE int
 #define USEPARITY
-#define OBC
+#define PBC
 
 
 #ifdef USEPARITY
@@ -373,6 +373,7 @@ int main()
 {
 
     ofstream Zvalout("Zval"+ap,std::ofstream::out);
+    ofstream Sparcityout("Sparcity"+ap,std::ofstream::out);
     ofstream outData("outData"+ap,std::ofstream::out);
     ofstream ZvalMultout("ZvalMUlt"+ap,std::ofstream::out);
     ofstream Xvalout("Xval"+ap,std::ofstream::out);
@@ -489,8 +490,113 @@ int main()
 
 
     eigval.save("eigvalues.dat");
+    eigvec.save("eigvectors.dat");
+
+    for(size_t j=0;j<eigval.size();j++)
+    {
+    mat fullBasis(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
+    size_t irow=0;
+
+    for(vector<int>::iterator  itR=BasisMatRestrictedLHalf.begin();itR!= BasisMatRestrictedLHalf.end();itR++)
+    {
+        size_t icolumn=0;
+        for(vector<int>::iterator  itL=BasisMatRestrictedLHalf.begin();itL!= BasisMatRestrictedLHalf.end();itL++)
+        {
+
+              const INTTYPE num=((*itR)|leftRotate(*itL,LENGHT/2));
+
+              if(!CHECKUPS(num))
+              {
+                  INTTYPE theRep;
+
+#ifdef PARITY2
+                  double signo=1.;
+                  representative(num,theRep,signo);
+#else
+                  representative(num,theRep);
+#endif
+#ifdef PARITY2
+                  if(theRep!=-1)
+#endif
+                  {
+                      std::vector<BasNumber>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), theRep,ComparStruct);
+
+                      const size_t index = std::distance(BasisMat.begin(), it);
+#ifdef USEPARITY
+#ifdef PARITY1
+#ifdef PBC
+                      fullBasis.at(irow,icolumn)=eigvec.at(index,j)*
+                                                 sqrt(((it->Mperio==-1)?0.5:1.)/it->Rperio);
+#else
+                      fullBasis.at(irow,icolumn)=eigvec.at(index,j)*(sqrt((theRep!=reflect(theRep)?0.5:1.)));
+#endif
+#endif
+#ifdef PARITY2
+#ifdef PBC
+                      fullBasis.at(irow,icolumn)=eigvec.at(index,j)*
+                                                 sqrt(0.5/it->Rperio)*signo;
+#else
+                      fullBasis.at(irow,icolumn)=eigvec.at(index,j)*signo*sqrt(0.5);
+#endif
+#endif
+
+                      #else
+#ifdef PBC
+                      fullBasis.at(irow,icolumn)=eigvec.at(index,j)*
+                                                 sqrt(1./it->Rperio);
+#else
+                      fullBasis.at(irow,icolumn)=eigvec.at(index,j);
+#endif
+                      #endif
+
+                  }
 
 
+              }
+
+
+              icolumn++;
+
+        }
+
+        irow++;
+
+    }
+
+
+     mat Reduced=fullBasis*fullBasis.t();
+
+
+     vec eigval2;
+     mat eigvec2;
+
+
+     eig_sym(eigval2, eigvec2, Reduced);
+     double summa=0;
+     for(size_t h=0;h<eigval2.size();h++ )
+     {
+        if(eigval2.at(h)>0.000000000001)
+        {
+           summa++;
+        }
+
+     }
+
+     Sparcityout<<eigval.at(j)<<" "<<summa/eigval2.size()<<endl;
+
+     if(summa/eigval2.size()<0.2)
+     {
+         vec va=eigvec.col(j);
+         va.save("eigvector"+to_string(j)+".dat");
+
+     }
+
+
+}
+
+Sparcityout.close();
+
+/*
     outData<< left << setw(14)<<"Energy "<<left << setw(14)  <<"S " <<endl;
     Zvalout<<" Z1   Z1Z2"<<endl;
     ZvalMultout<<" Z1Z2   Z1Z23"<<endl;
@@ -549,24 +655,24 @@ int main()
               #ifdef PARITY1
 #ifdef PBC
                                       const double val=((BasisMat.at(k).Mperio==-1)?2.:1.)/((it2->Mperio==-1)?2.:1.);
-                                      Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*val/it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+                                      Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*val/it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j);
 #else
-                                      Xval.at(m-1)+=sqrt(((BasisMat.at(k).basi!=reflect(BasisMat.at(k).basi))?2.:1.)/((rep!=reflect(rep))?2.:1.))*eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+                                      Xval.at(m-1)+=sqrt(((BasisMat.at(k).basi!=reflect(BasisMat.at(k).basi))?2.:1.)/((rep!=reflect(rep))?2.:1.))*eigvec.at(k,j)*eigvec.at(index,j);
 #endif
               #endif
               #ifdef PARITY2
 #ifdef PBC
-                                      Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*1./it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/*signo;
+                                      Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*1./it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j)*signo;
 #else
-                                      Xval.at(m-1)+=eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/*signo;
+                                      Xval.at(m-1)+=eigvec.at(k,j)*eigvec.at(index,j)*signo;
 #endif
               #endif
 
               #else
 #ifdef PBC
-                                      Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*1./it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+                                      Xval.at(m-1)+=sqrt(BasisMat.at(k).Rperio*1./it2->Rperio)*eigvec.at(k,j)*eigvec.at(index,j);
 #else
-                                      Xval.at(m-1)+=eigvec.at(k,j)*eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,l)))*/;
+                                      Xval.at(m-1)+=eigvec.at(k,j)*eigvec.at(index,j);
 #endif
               #endif
 
@@ -619,27 +725,27 @@ int main()
 #ifdef USEPARITY
 #ifdef PARITY1
 #ifdef PBC
-                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)*
                                                        sqrt(((it->Mperio==-1)?0.5:1.)/it->Rperio);
 #else
-                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)*(sqrt((theRep!=reflect(theRep)?0.5:1.)))/*((kmomentum==0)?1.:(pow(-1.,thel)))*/;
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)*(sqrt((theRep!=reflect(theRep)?0.5:1.)));
 #endif
 #endif
 #ifdef PARITY2
 #ifdef PBC
-                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)*
                                                        sqrt(0.5/it->Rperio)*signo;
 #else
-                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*signo*sqrt(0.5);
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)*signo*sqrt(0.5);
 #endif
 #endif
 
                             #else
 #ifdef PBC
-                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/*
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)*
                                                        sqrt(1./it->Rperio);
 #else
-                            fullBasis.at(irow,icolumn)=eigvec.at(index,j)/*((kmomentum==0)?1.:(pow(-1.,thel)))*/;
+                            fullBasis.at(irow,icolumn)=eigvec.at(index,j);
 #endif
                             #endif
 
@@ -697,7 +803,7 @@ int main()
     ZvalMultout.close();
     Xvalout.close();
 
-
+*/
 
 }
 
