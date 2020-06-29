@@ -17,10 +17,11 @@
 using namespace std;
 using namespace arma;
 
-#define PXP
-#define LENGHT 12
+//#define USESPAR
+#define PPPPXPPPP
+#define LENGHT 30 
 #define INTTYPE int
-#define OBC
+#define PBC 
 #define W 1
 
 const string ap="FULL";
@@ -164,12 +165,14 @@ void CreateBasis()
 {
 
     BasisMat.push_back(0);
-
+    BasisMatRestrictedLHalf.push_back(0);
+    ofstream Dis("DisorderValues",std::ofstream::out);
 
     for(size_t i=0;i<LENGHT;i++)
     {
         wi.at(i)=dist(mt);
-        cout<<wi.at(i)<<endl;
+        Dis<<wi.at(i);
+
         const size_t BAS=BasisMat.size();
 
 
@@ -181,9 +184,11 @@ void CreateBasis()
 
             if(!CHECKUPS(num))
             {
-
                 BasisMat.push_back(num);
-
+                if(num<pow(2,LENGHT/2))
+                {
+                    BasisMatRestrictedLHalf.push_back(num);
+                }
 
             }
 
@@ -198,7 +203,7 @@ void CreateBasis()
 
 
 
-
+Dis.close();
 }
 
 
@@ -217,14 +222,20 @@ int main()
     cout<<"Creating Hamiltonian matrix"<<endl;
 
     const size_t BASISSIZE=BasisMat.size();
+    const size_t RESTBASISLHALFSIZE=BasisMatRestrictedLHalf.size();
 
 
     cout<<"SIZE OF THE BASIS:"<<BASISSIZE<<endl;
     PRINTINFO(BASISSIZE);
+#ifdef USESPAR
+    sp_mat Hamil(BASISSIZE,BASISSIZE);
+#else
     mat Hamil(BASISSIZE,BASISSIZE,fill::zeros);
+#endif
 
     for(vector<INTTYPE>::iterator  it=BasisMat.begin();it!= BasisMat.end();it++)
     {
+        const size_t i = std::distance(BasisMat.begin(), it);
         for(size_t pos=0;pos<LENGHT;pos++)
         {
 
@@ -232,7 +243,7 @@ int main()
 
             INTTYPE number=*it;
 
-            int UpDown=((number) & (1ULL<<(pos)))?1:-1;
+            double UpDown=((number) & (1ULL<<(pos)))?0.5:-0.5;
             if(!(number&(fiveVar)))
             {
 
@@ -241,7 +252,7 @@ int main()
                 if (it2 != BasisMat.end())
                 {
                     const size_t index = std::distance(BasisMat.begin(), it2);
-                    const size_t i = std::distance(BasisMat.begin(), it);
+
                     Hamil(i,index)+=1.;
 
                 }
@@ -251,7 +262,7 @@ int main()
                 }
 
             }
-            Hamil(pos,pos)+=wi.at(pos)*UpDown;
+            Hamil(i,i)+=wi.at(i)*UpDown;
 
 
 
@@ -259,7 +270,11 @@ int main()
 
     }
 
-
+#ifdef USESPAR
+    ofstream density("Density",std::ofstream::out);
+    density<<Hamil;
+    density.close();
+#endif
     auto start2 = chrono::high_resolution_clock::now();
 
     cout<<" Elapsed time Creating Hamiltonian Matrix: " << chrono::duration<double>(start2 - start1).count()<<"s"<<endl;
@@ -268,12 +283,15 @@ int main()
 
 
    cout<<"Start the diagonalization"<<endl;
+   vec eigval;
+   mat eigvec;
 
-    vec eigval;
-    mat eigvec;
+#ifdef USESPAR
+   eigs_sym(eigval, eigvec, Hamil, BASISSIZE-1);
 
+#else
     eig_sym(eigval, eigvec, Hamil);
-
+#endif
 
     auto start3 = chrono::high_resolution_clock::now();
 
@@ -284,8 +302,59 @@ int main()
 
 
 
+#ifndef USESPAR
+    ofstream outData("Entanglement"+ap,std::ofstream::out);
+    double Sval=0;
+    for(size_t j=0;j<eigval.size();j++)
+    {
+        mat fullBasis(RESTBASISLHALFSIZE,RESTBASISLHALFSIZE,fill::zeros);
+        size_t irow=0;
+
+        for(vector<int>::iterator  itR=BasisMatRestrictedLHalf.begin();itR!= BasisMatRestrictedLHalf.end();itR++)
+        {
+            size_t icolumn=0;
+            for(vector<int>::iterator  itL=BasisMatRestrictedLHalf.begin();itL!= BasisMatRestrictedLHalf.end();itL++)
+            {
+
+                  const INTTYPE num=((*itR)|leftRotate(*itL,LENGHT/2));
+
+                  if(!CHECKUPS(num))
+                  {
+
+                          std::vector<INTTYPE>::iterator it = std::lower_bound(BasisMat.begin(), BasisMat.end(), num);
+
+                          const size_t index = std::distance(BasisMat.begin(), it);
+
+
+                          fullBasis.at(irow,icolumn)=eigvec.at(index,j);
+
+                  }
+
+
+                  icolumn++;
+
+            }
+
+            irow++;
+
+        }
+
+
+         mat Reduced=fullBasis*fullBasis.t();
+
+
+         vec eigval2;
+         mat eigvec2;
+
+
+         eig_sym(eigval2, eigvec2, Reduced);
+
+         Sval=trace(eigval2.t()*trunc_log(eigval2));
+         outData<< left << setw(14)<<eigval(j)<< left << setw(14) <<-Sval<<endl;
+
+    }
+
+
+#endif
+
 }
-
-
-
-
