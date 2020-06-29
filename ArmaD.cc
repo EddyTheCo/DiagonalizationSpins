@@ -18,9 +18,9 @@ using namespace std;
 using namespace arma;
 
 //#define USESPAR
-#define PPPPXPPPP
-#define LENGHT 30 
-#define INTTYPE int
+#define PPPPPXPPPPP
+#define LENGHT 36 
+#define INTTYPE long
 #define PBC 
 #define W 1
 
@@ -262,22 +262,22 @@ int main()
                 }
 
             }
-            Hamil(i,i)+=wi.at(i)*UpDown;
-
+            Hamil(i,i)+=wi.at(pos)*UpDown;
 
 
         }
 
     }
-
+ auto start2 = chrono::high_resolution_clock::now();
+    cout<<" Elapsed time Creating Hamiltonian Matrix: " << chrono::duration<double>(start2 - start1).count()<<"s"<<endl;
 #ifdef USESPAR
     ofstream density("Density",std::ofstream::out);
     density<<Hamil;
     density.close();
 #endif
-    auto start2 = chrono::high_resolution_clock::now();
 
-    cout<<" Elapsed time Creating Hamiltonian Matrix: " << chrono::duration<double>(start2 - start1).count()<<"s"<<endl;
+
+
 
 
 
@@ -287,7 +287,7 @@ int main()
    mat eigvec;
 
 #ifdef USESPAR
-   eigs_sym(eigval, eigvec, Hamil, BASISSIZE-1);
+   //eigs_sym(eigval, eigvec, Hamil, BASISSIZE-1);
 
 #else
     eig_sym(eigval, eigvec, Hamil);
