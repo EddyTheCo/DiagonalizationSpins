@@ -171,7 +171,7 @@ void CreateBasis()
     for(size_t i=0;i<LENGHT;i++)
     {
         wi.at(i)=dist(mt);
-        Dis<<wi.at(i);
+        Dis<<std::setprecision(12)<<wi.at(i)<<endl;
 
         const size_t BAS=BasisMat.size();
 
@@ -288,7 +288,6 @@ int main()
 
 #ifdef USESPAR
    //eigs_sym(eigval, eigvec, Hamil, BASISSIZE-1);
-
 #else
     eig_sym(eigval, eigvec, Hamil);
 #endif
