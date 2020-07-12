@@ -33,8 +33,8 @@ void Thouless(void)
     vec y2 = polyval(p,x);
 
 
-
     vec GaussFilte=exp(-2*square(y2-mean(y2))/var(y2));
+
 
     vec Zvec=square(GaussFilte);
 
@@ -42,19 +42,23 @@ void Thouless(void)
     double Z=sum(Zvec);
 
 
-    cx_vec K = fft(GaussFilte);
-    vec Kmod=square(abs(K));
-
-
-
     ofstream THOUX("THOUX");
     ofstream THOUY("THOUY");
     ofstream THOUZ("THOUZ");
-    for(size_t i=0;i<x.n_elem;i++)
-    {
-        THOUX<<i*i*2*3.14159265358979323846264338327950288419716/x.n_elem/y2.at(i)<<endl;
-        THOUY<<Kmod.at(i)<<endl;
 
+    for (double tau=0; tau<1.2;tau+=0.001)
+    {
+        cx_vec fase(x.n_elem);
+
+        for (size_t i = 0; i < x.n_elem; i++) {
+            fase.at(i)=polar(1.0,-y2.at(i)*tau);
+
+        }
+
+
+        double suma=norm(dot(GaussFilte,fase));
+        THOUX<<tau<<endl;
+        THOUY<<tau <<" "<<suma<<endl;
     }
     THOUZ<<Z<<endl;
     THOUX.close();

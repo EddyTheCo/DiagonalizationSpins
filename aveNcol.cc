@@ -16,7 +16,7 @@ using namespace std;
 
 
 
-void aveNCol(string file,const size_t NCol)
+void aveNCol(string file,const size_t NCol, const size_t colErr=0)
 {
 
 
@@ -24,13 +24,34 @@ void aveNCol(string file,const size_t NCol)
         ifstream dataFile(file);
         ofstream OutFile("AVE"+file);
         vector<vector<double>> arr;
+        vector<double> SUMERR;
         double val;
         size_t step=0;
+
         while (dataFile>>val)
         {
-            arr.at(step%NCol).at(step/NCol)=val;
+            if(colErr!=0&&(step%NCol==colErr-1))
+            {
+                SUMERR.push_back(val);
+            }
+            if(step/NCol==0)
+            {
+                vector<double> var;
+                var.push_back(val);
+                arr.push_back(var);
+
+            }
+            else
+            {
+                arr.at(step%NCol).push_back(val);
+            }
+
             step++;
         }
+
+        double sq_sum1 = std::inner_product(SUMERR.begin(), SUMERR.end(), SUMERR.begin(), 0.0);
+
+        double stdev1 = std::sqrt(sq_sum1 )/SUMERR.size();
 
 
         for(size_t i=0;i<NCol;i++)
@@ -52,7 +73,7 @@ void aveNCol(string file,const size_t NCol)
             OutFile<<mean<<" "<<stdev<<endl;
         }
 
-
+OutFile<<stdev1<<endl;
 
 OutFile.close();
 dataFile.close();
@@ -64,6 +85,16 @@ int main(int argc, char *argv[])
 
     int column = atoi(argv[2]);
     std::string str(argv[1]);
-    aveNCol(str,column);
+
+
+    if(argc>3)
+    {
+        int column2 = atoi(argv[3]);
+        aveNCol(str,column,column2);
+    }
+    else
+    {
+        aveNCol(str,column);
+    }
 
 }

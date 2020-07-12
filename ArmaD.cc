@@ -19,10 +19,10 @@ using namespace arma;
 
 //#define USESPAR
 #define PPPPPXPPPPP
-#define LENGHT 36 
-#define INTTYPE long
+#define LENGHT 30 
+#define INTTYPE int
 #define PBC 
-#define W 1
+#define W  1.0 
 
 const string ap="FULL";
 

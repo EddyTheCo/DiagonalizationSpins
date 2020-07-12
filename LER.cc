@@ -19,7 +19,7 @@ using namespace std;
 using namespace arma;
 
 
-void LER(const int L)
+void LER(void)
 {
 
         queue <double>  var;
@@ -75,7 +75,7 @@ double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
 
 double stdev = std::sqrt(sq_sum /li_r_a.size());
 
-ofstream LER("LER");
+ofstream LER("LERDATA");
 
 LER<<" "<<mean<<" "<<stdev/sqrt(li_r_a.size())<<endl;
 LER.close();
@@ -83,6 +83,7 @@ LER.close();
 
 
 }
+
 
 void TEO(const string str, const int column=1)
 {
@@ -127,10 +128,11 @@ histdata2.close();
 
 }
 
-int main(int argc, char *argv[])
+int main(/*int argc, char *argv[]*/)
 {
-std::string str(argv[1]);
-LER(1);
+//std::string str(argv[1]);
+LER();
+//Thouless();
 //int column = atoi(argv[2]);
 //TEO(str, column);
 }

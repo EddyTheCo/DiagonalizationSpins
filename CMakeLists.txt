@@ -5,7 +5,7 @@
 #
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(ArmaD)
-set(ROOT_INSTALL /home/camelud/GEANT4/ROOT/build)
+
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -19,26 +19,32 @@ endif()
 
 message( STATUS ${PROJECT_SOURCE_DIR})
 
-include_directories(${ROOT_INSTALL}/include)
+#include_directories(${ROOT_INSTALL}/include)
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
+#include_directories(${PROJECT_SOURCE_DIR}/include)
 #include_directories(${PROJECT_SOURCE_DIR}/libraries)
-include_directories(${PROJECT_SOURCE_DIR}/src)
+#include_directories(${PROJECT_SOURCE_DIR}/src)
 #----------------------------------------------------------------------------
 # Locate sources and headers for this project
 # NB: headers are included so they will show up in IDEs
 #
 
-file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
-file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
+#file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
+#file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
 
 #file(GLOB sourcesLibre ${PROJECT_SOURCE_DIR}/libraries/*.cpp)
 #file(GLOB headersLibre ${PROJECT_SOURCE_DIR}/libraries/*.h)
 #file(GLOB sources ${PROJECT_SOURCE_DIR}/libraries/*.cpp)
 #file(GLOB headers ${PROJECT_SOURCE_DIR}/libraries/*.h)
 
-add_executable(ArmaD ArmaD.cc ${sources} ${headers} )
-target_link_libraries(ArmaD -lopenblas -L${ROOT_INSTALL}/lib  -lCore -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lm -ldl -rdynamic)
+add_executable(ArmaD ArmaD.cc)
+add_executable(LER LER.cc)
+add_executable(THOU Thouless.cc)
+add_executable(aveNcol aveNcol.cc)
+add_executable(ThouTimeCal ThoTimeCal.cc)
+target_link_libraries(ArmaD -lopenblas )
+target_link_libraries(THOU -lopenblas )
+target_link_libraries(LER -lopenblas )
 
 #-L${ROOT_INSTALL}/lib -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lm -ldl -rdynamic
 
@@ -72,4 +78,4 @@ target_link_libraries(ArmaD -lopenblas -L${ROOT_INSTALL}/lib  -lCore -lRIO -lNet
 #----------------------------------------------------------------------------
 # Install the executable to 'bin' directory under CMAKE_INSTALL_PREFIX
 #
-install(TARGETS ArmaD DESTINATION bin)
+#install(TARGETS ArmaD DESTINATION bin)
