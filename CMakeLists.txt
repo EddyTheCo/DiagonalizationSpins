@@ -42,9 +42,12 @@ add_executable(LER LER.cc)
 add_executable(THOU Thouless.cc)
 add_executable(aveNcol aveNcol.cc)
 add_executable(ThouTimeCal ThoTimeCal.cc)
+add_executable(HeisTimeCal Heisemberg.cc)
+
 target_link_libraries(ArmaD -lopenblas )
 target_link_libraries(THOU -lopenblas )
 target_link_libraries(LER -lopenblas )
+target_link_libraries(HeisTimeCal -lopenblas )
 
 #-L${ROOT_INSTALL}/lib -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lPhysics -lMathCore -lThread -lm -ldl -rdynamic
 

@@ -70,7 +70,7 @@ void aveNCol(string file,const size_t NCol, const size_t colErr=0)
 
             double stdev = std::sqrt(sq_sum /li_r_a.size());
 
-            OutFile<<mean<<" "<<stdev<<endl;
+            OutFile<<mean<<" "<<stdev/std::sqrt(li_r_a.size())<<endl;
         }
 
 OutFile<<stdev1<<endl;
